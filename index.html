@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -761,9 +760,15 @@
     let auth = null;
 
     try {
-      const firebaseConfig = typeof __firebase_config !== 'undefined'
-        ? JSON.parse(__firebase_config)
-        : null;
+      const firebaseConfig = {
+    apiKey: "AIzaSyCH6eTyTdxL4N4SNWcHm-vguv1KVbsQcz4",
+    authDomain: "railway-ta-ddc21.firebaseapp.com",
+    projectId: "railway-ta-ddc21",
+    storageBucket: "railway-ta-ddc21.firebasestorage.app",
+    messagingSenderId: "898439268763",
+    appId: "1:898439268763:web:63b532828683631080393e",
+    measurementId: "G-CQH8SD3RE4"
+  };
 
       if (firebaseConfig) {
         const app = initializeApp(firebaseConfig);
