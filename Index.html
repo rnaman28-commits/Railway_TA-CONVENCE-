@@ -1,0 +1,2343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0b1f3a" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Railway TA" />
+  <title>Railway TA & Conveyance Calculator</title>
+
+  <!-- Dynamic PWA Manifest & Icon Link -->
+  <link id="pwaManifestLink" rel="manifest" />
+  <link id="appleTouchIconLink" rel="apple-touch-icon" />
+
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: #0b1f3a;
+      color: #1e293b;
+      margin: 0;
+      overflow-x: hidden;
+    }
+
+    /* Splash Screen - Always Shown on App Open */
+    #splashScreen {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: radial-gradient(circle at 50% 42%, #132d52 0%, #0b1f3a 72%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      padding: 52px 24px 44px;
+      opacity: 1;
+      visibility: visible;
+      transition: opacity 0.45s ease, visibility 0.45s ease;
+    }
+    #splashScreen.hide-splash {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+    .gold-text {
+      background: linear-gradient(180deg, #fff3c4 0%, #f3d085 45%, #c59b43 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      filter: drop-shadow(0 4px 12px rgba(243, 208, 133, 0.28));
+    }
+    .loco-glow {
+      filter: drop-shadow(0 0 20px rgba(243, 208, 133, 0.5));
+    }
+    #splashProgressBar {
+      width: 0%;
+      height: 100%;
+      border-radius: 9999px;
+      background: linear-gradient(90deg, #fde68a, #f59e0b, #fbbf24);
+      transition: width 0.22s linear;
+    }
+
+    /* 4-Digit PIN Lock Overlay */
+    #appLockOverlay {
+      position: fixed;
+      inset: 0;
+      z-index: 9990;
+      background: radial-gradient(circle at 50% 30%, #14325c 0%, #0b1f3a 78%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      padding: 44px 24px 36px;
+      color: #fff;
+      transition: opacity 0.3s ease, visibility 0.3s ease;
+    }
+    #appLockOverlay.hidden-lock {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+    .pin-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 9999px;
+      border: 2px solid #f3d085;
+      background: transparent;
+      transition: background 0.15s ease, transform 0.15s ease;
+    }
+    .pin-dot.filled {
+      background: #f3d085;
+      transform: scale(1.12);
+    }
+    .pin-key {
+      width: 68px;
+      height: 68px;
+      border-radius: 9999px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      font-size: 24px;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+      transition: background 0.12s ease, transform 0.1s ease;
+    }
+    .pin-key:active {
+      background: rgba(243, 208, 133, 0.3);
+      transform: scale(0.93);
+    }
+    @keyframes shakePin {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-8px); }
+      50% { transform: translateX(8px); }
+      75% { transform: translateX(-6px); }
+    }
+    .pin-shake {
+      animation: shakePin 0.32s ease;
+    }
+
+    /* App Sheet & Bento Cards */
+    .app-sheet {
+      background: #f8fafc;
+      border-top-left-radius: 30px;
+      border-top-right-radius: 30px;
+      min-height: calc(100vh - 86px);
+      box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.25);
+    }
+    .bento-card {
+      transition: transform 0.14s ease, box-shadow 0.14s ease;
+    }
+    .bento-card:active {
+      transform: scale(0.97);
+    }
+
+    /* Official GA 31 SRC / Railway DOCX Print Styling */
+    .print-sheet {
+      font-family: 'Times New Roman', 'Noto Sans Devanagari', Arial, serif;
+      color: #000;
+      background: #fff;
+      padding: 6px;
+    }
+    .print-sheet table.rail-table {
+      border-collapse: collapse;
+      width: 100%;
+      font-size: 10.5px;
+      line-height: 1.25;
+    }
+    .print-sheet table.rail-table th,
+    .print-sheet table.rail-table td {
+      border: 1px solid #000;
+      padding: 3px 4px;
+      text-align: center;
+      vertical-align: middle;
+    }
+    .print-sheet table.rail-table th {
+      background-color: #ffffff !important;
+      color: #000 !important;
+      font-weight: bold;
+    }
+    .print-sheet table.emp-meta td {
+      border: 0;
+      text-align: left;
+      padding: 4px 6px;
+      font-size: 13px;
+    }
+    .dotted-fill {
+      display: inline-block;
+      border-bottom: 1px dotted #000;
+      padding: 0 10px;
+      font-weight: bold;
+      text-align: center;
+    }
+
+    @media print {
+      body {
+        background: #fff !important;
+        padding: 0 !important;
+        margin: 0 !important;
+      }
+      .no-print, #splashScreen, #appLockOverlay {
+        display: none !important;
+      }
+      #appShell, #subViewContainer, #view-preview, #printContainer {
+        display: block !important;
+        background: #fff !important;
+        box-shadow: none !important;
+        border: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        width: 100% !important;
+        max-width: none !important;
+      }
+      .print-sheet {
+        padding: 0 !important;
+        min-width: 0 !important;
+        width: 100% !important;
+      }
+      .sign-block {
+        break-inside: avoid;
+      }
+      @page {
+        size: A4 landscape;
+        margin: 7mm 8mm;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Toast Notification -->
+  <div id="toastBox" class="no-print fixed top-4 left-1/2 -translate-x-1/2 z-[10000] hidden max-w-[92vw]">
+    <div class="flex items-center gap-2 px-4 py-3 rounded-2xl shadow-2xl text-white text-sm font-semibold bg-slate-900 border border-white/15">
+      <span id="toastIcon">✅</span>
+      <span id="toastMsg">Saved</span>
+    </div>
+  </div>
+
+  <!-- Confirmation Modal -->
+  <div id="confirmModal" class="no-print fixed inset-0 z-[10000] hidden bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-5 shadow-2xl">
+      <h3 class="text-lg font-bold text-slate-900" id="confirmTitle">Confirm Delete</h3>
+      <p class="text-sm text-slate-600 mt-1" id="confirmText">Are you sure?</p>
+      <div class="flex justify-end gap-2.5 mt-5">
+        <button id="confirmCancelBtn" class="px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-700 bg-slate-100">Cancel</button>
+        <button id="confirmOkBtn" class="px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-red-600">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Install App Manual Guide Modal (For iOS / Non-Prompt Browsers) -->
+  <div id="installHelpModal" class="no-print fixed inset-0 z-[10000] hidden bg-slate-950/65 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-5 shadow-2xl space-y-3">
+      <div class="flex items-center justify-between">
+        <h3 class="text-lg font-extrabold text-[#0b1f3a]">📲 Install App on Phone</h3>
+        <button onclick="document.getElementById('installHelpModal').classList.add('hidden')" class="w-8 h-8 rounded-full bg-slate-100 font-bold text-slate-600">✕</button>
+      </div>
+      <div class="text-xs text-slate-700 space-y-2 leading-relaxed">
+        <p class="bg-blue-50 p-2.5 rounded-xl border border-blue-100">
+          <b>Android (Chrome):</b> ऊपर दाईं ओर <b>⋮ (3 Dots)</b> पर टैप करें → <b>"Install app"</b> या <b>"Add to Home screen"</b> चुनें।
+        </p>
+        <p class="bg-amber-50 p-2.5 rounded-xl border border-amber-100">
+          <b>iPhone (Safari):</b> नीचे <b>Share (□↑)</b> बटन दबाएं → <b>"Add to Home Screen"</b> चुनें।
+        </p>
+        <p class="text-[11px] text-slate-500">
+          नोट: App Install होने के लिए लिंक का <b>https://</b> (जैसे GitHub Pages) पर खुलना ज़रूरी है।
+        </p>
+      </div>
+      <button onclick="document.getElementById('installHelpModal').classList.add('hidden')" class="w-full bg-[#0b1f3a] text-white font-bold py-2.5 rounded-xl text-sm">
+        Got It
+      </button>
+    </div>
+  </div>
+
+  <!-- ==================== 1. SPLASH / LOADING SCREEN ==================== -->
+  <div id="splashScreen">
+    <div class="h-4"></div>
+    <div class="flex flex-col items-center text-center max-w-xs w-full">
+      <svg class="w-48 h-40 loco-glow mb-3" viewBox="0 0 260 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M135 46C125 32 145 18 168 18C188 18 205 26 222 22C210 34 190 36 172 34C158 33 148 40 145 48" fill="#f7dfa4" opacity="0.9"/>
+        <rect x="44" y="88" width="54" height="58" rx="4" stroke="#f3d085" stroke-width="3.5" fill="#0e2647"/>
+        <rect x="52" y="96" width="18" height="22" rx="2" stroke="#f3d085" stroke-width="2.5" fill="#173866"/>
+        <rect x="74" y="96" width="16" height="22" rx="2" stroke="#f3d085" stroke-width="2.5" fill="#173866"/>
+        <path d="M38 88C54 78 88 78 104 88" stroke="#f3d085" stroke-width="4" stroke-linecap="round"/>
+        <path d="M98 92H178V142H98V92Z" fill="#0e2647" stroke="#f3d085" stroke-width="3.5"/>
+        <ellipse cx="178" cy="117" rx="18" ry="25" fill="#132f57" stroke="#f3d085" stroke-width="3.5"/>
+        <circle cx="182" cy="117" r="9" fill="#fff3c4" stroke="#c59b43" stroke-width="2.5"/>
+        <path d="M158 92L153 60H171L166 92" fill="#0e2647" stroke="#f3d085" stroke-width="3.5" stroke-linejoin="round"/>
+        <rect x="150" y="55" width="24" height="6" rx="2" fill="#f3d085"/>
+        <path d="M124 92C124 81 140 81 140 92" fill="#0e2647" stroke="#f3d085" stroke-width="3.5"/>
+        <path d="M174 142L204 164H162L168 142" fill="#0e2647" stroke="#f3d085" stroke-width="3" stroke-linejoin="round"/>
+        <line x1="172" y1="149" x2="192" y2="164" stroke="#f3d085" stroke-width="2"/>
+        <line x1="168" y1="156" x2="180" y2="164" stroke="#f3d085" stroke-width="2"/>
+        <circle cx="72" cy="154" r="14" fill="#0b1f3a" stroke="#f3d085" stroke-width="3.5"/>
+        <circle cx="72" cy="154" r="5" fill="#f3d085"/>
+        <circle cx="106" cy="154" r="14" fill="#0b1f3a" stroke="#f3d085" stroke-width="3.5"/>
+        <circle cx="106" cy="154" r="5" fill="#f3d085"/>
+        <circle cx="138" cy="156" r="12" fill="#0b1f3a" stroke="#f3d085" stroke-width="3.5"/>
+        <circle cx="138" cy="156" r="4" fill="#f3d085"/>
+        <line x1="68" y1="154" x2="142" y2="156" stroke="#fff3c4" stroke-width="3" stroke-linecap="round"/>
+        <line x1="34" y1="170" x2="215" y2="170" stroke="#f3d085" stroke-width="3" stroke-linecap="round"/>
+      </svg>
+
+      <h1 class="gold-text text-4xl font-black tracking-wide leading-none">INDIAN</h1>
+      <h2 class="gold-text text-4xl font-black tracking-wide leading-tight mt-0.5">RAILWAYS</h2>
+
+      <div class="w-56 h-2.5 rounded-full bg-white/15 overflow-hidden mt-6 p-0.5 border border-amber-200/30">
+        <div id="splashProgressBar"></div>
+      </div>
+      <div id="splashPercentText" class="text-[11px] text-amber-200/90 font-semibold mt-2 tracking-wider">
+        Loading App... 0%
+      </div>
+    </div>
+
+    <div class="px-5 py-2 rounded-full bg-[#d2b47c] text-[#0b1f3a] text-xs font-extrabold tracking-wide shadow-lg">
+      TA &amp; Conveyance Calculator
+    </div>
+  </div>
+
+  <!-- ==================== 2. 4-DIGIT PIN APP LOCK SCREEN ==================== -->
+  <div id="appLockOverlay" class="no-print hidden-lock">
+    <div class="flex flex-col items-center text-center mt-4">
+      <div class="w-14 h-14 rounded-2xl bg-amber-300/15 border border-amber-300/40 flex items-center justify-center text-2xl mb-3 shadow-lg">
+        🔒
+      </div>
+      <h2 class="text-xl font-extrabold tracking-tight text-white">Railway TA Locked</h2>
+      <p id="lockSubMsg" class="text-xs text-blue-200 mt-1">Enter your 4-digit PIN to unlock</p>
+
+      <div id="pinDotsContainer" class="flex items-center gap-4 mt-6">
+        <span class="pin-dot" id="dot0"></span>
+        <span class="pin-dot" id="dot1"></span>
+        <span class="pin-dot" id="dot2"></span>
+        <span class="pin-dot" id="dot3"></span>
+      </div>
+      <p id="pinErrorText" class="text-xs font-bold text-red-400 h-4 mt-2.5"></p>
+    </div>
+
+    <div class="grid grid-cols-3 gap-4 max-w-[260px] w-full place-items-center mb-4">
+      <button type="button" class="pin-key" onclick="pressPinKey('1')">1</button>
+      <button type="button" class="pin-key" onclick="pressPinKey('2')">2</button>
+      <button type="button" class="pin-key" onclick="pressPinKey('3')">3</button>
+      <button type="button" class="pin-key" onclick="pressPinKey('4')">4</button>
+      <button type="button" class="pin-key" onclick="pressPinKey('5')">5</button>
+      <button type="button" class="pin-key" onclick="pressPinKey('6')">6</button>
+      <button type="button" class="pin-key" onclick="pressPinKey('7')">7</button>
+      <button type="button" class="pin-key" onclick="pressPinKey('8')">8</button>
+      <button type="button" class="pin-key" onclick="pressPinKey('9')">9</button>
+      <button type="button" class="pin-key text-sm font-bold text-amber-200" onclick="clearPinEntry()">CLR</button>
+      <button type="button" class="pin-key" onclick="pressPinKey('0')">0</button>
+      <button type="button" class="pin-key text-lg" onclick="backspacePinEntry()">⌫</button>
+    </div>
+
+    <div class="text-[11px] text-blue-200/70">
+      Indian Railways • Offline Security
+    </div>
+  </div>
+
+  <!-- ==================== 3. MAIN APP SHELL ==================== -->
+  <div id="appShell" class="max-w-lg mx-auto min-h-screen flex flex-col">
+
+    <!-- Dark Navy Top Header -->
+    <header class="no-print px-5 pt-4 pb-3 flex items-center justify-between text-white">
+      <div class="flex items-center gap-2.5">
+        <button id="backHomeBtn" onclick="goHome()" class="hidden w-9 h-9 rounded-xl bg-white/15 active:scale-95 flex items-center justify-center text-base font-bold">
+          ←
+        </button>
+        <div>
+          <h1 id="topHeaderTitle" class="text-xl font-bold tracking-tight">Indian Railways</h1>
+          <div class="flex items-center gap-1.5 mt-0.5">
+            <span id="topHeaderSub" class="text-[11px] text-blue-200">Offline Ready • 2026</span>
+            <span id="cloudStatusPill" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/10 text-amber-200">● Offline</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Top Right Profile Avatar & Name -->
+      <div class="flex items-center gap-2">
+        <button id="quickLockNowBtn" onclick="lockAppNow()" title="Lock App" class="hidden w-9 h-9 rounded-full bg-white/15 border border-white/25 flex items-center justify-center text-sm active:scale-95">
+          🔒
+        </button>
+        <button onclick="openSection('profile')" class="flex flex-col items-center active:scale-95 transition">
+          <img id="headerAvatar" src="https://placehold.co/96x96/e2e8f0/0b1f3a?text=AM" alt="Profile" class="w-11 h-11 rounded-full object-cover border-2 border-white shadow-md bg-white" />
+          <span id="headerShortName" class="text-[10px] font-bold tracking-wider uppercase mt-1 text-white/95">AMAR SINGH M.</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Rounded White Sheet Body -->
+    <div class="app-sheet flex-1 px-4 pt-5 pb-10">
+
+      <!-- ==================== HOME DASHBOARD (BENTO MENU) ==================== -->
+      <div id="homeDashboard" class="space-y-3.5">
+
+        <!-- Install App Banner (Visible when not installed as Standalone App) -->
+        <div id="installAppBanner" class="bg-gradient-to-r from-[#0b1f3a] to-[#193b6b] text-white rounded-2xl p-3.5 shadow-md flex items-center justify-between gap-3 border border-amber-300/30">
+          <div class="flex items-center gap-3 min-w-0">
+            <div class="w-10 h-10 rounded-xl bg-amber-300/20 border border-amber-300/40 flex items-center justify-center text-xl shrink-0">
+              📲
+            </div>
+            <div class="min-w-0">
+              <div class="text-xs font-extrabold text-amber-200 tracking-wide">Install Railway TA App</div>
+              <div class="text-[11px] text-blue-100 truncate">Home screen par App ki tarah chalayein</div>
+            </div>
+          </div>
+          <button id="installAppBtn" onclick="triggerInstallApp()" class="bg-[#f3d085] text-[#0b1f3a] font-extrabold text-xs px-3.5 py-2 rounded-xl shadow-xs shrink-0 active:scale-95">
+            Install
+          </button>
+        </div>
+
+        <!-- Active Month Selector Strip -->
+        <div class="bg-white rounded-2xl px-3.5 py-2.5 border border-slate-200/80 shadow-xs flex items-center justify-between">
+          <div class="text-xs font-bold text-slate-600">
+            Selected Month: <span id="dashMonthLabel" class="text-[#0b1f3a]">2026-11</span>
+          </div>
+          <input id="dashMonthPicker" type="month" onchange="changeActiveMonth(this.value)" class="text-xs font-bold text-[#0b1f3a] bg-slate-100 px-2.5 py-1.5 rounded-xl border border-slate-200 focus:outline-none" />
+        </div>
+
+        <!-- Bento Grid -->
+        <div class="grid grid-cols-2 gap-3">
+          <div class="space-y-3">
+            <button onclick="openSection('profile')" class="bento-card w-full bg-[#e6defc] rounded-2xl p-3.5 flex items-center gap-3 shadow-xs text-left">
+              <div class="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-[#5b3cc4] shadow-xs shrink-0 text-lg">
+                🪪
+              </div>
+              <div>
+                <div class="font-bold text-slate-900 text-sm leading-tight">Profile</div>
+                <div class="text-[10px] font-semibold text-slate-600" id="tileLevelInfo">Level 4 • ₹625</div>
+              </div>
+            </button>
+
+            <button onclick="openSection('ta')" class="bento-card w-full bg-[#cce6ff] rounded-2xl p-3.5 flex items-center gap-3 shadow-xs text-left">
+              <div class="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-[#0066cc] shadow-xs shrink-0 text-lg">
+                📅
+              </div>
+              <div>
+                <div class="font-bold text-slate-900 text-sm leading-tight">TA Bill</div>
+                <div class="text-[10px] font-semibold text-slate-600" id="tileTaCount">0 Entries</div>
+              </div>
+            </button>
+          </div>
+
+          <button onclick="openPreview('TA')" class="bento-card bg-[#ffd2bc] rounded-2xl p-4 flex flex-col justify-between shadow-xs text-left">
+            <div class="w-11 h-11 rounded-xl bg-white flex items-center justify-center text-[#d9531e] shadow-xs text-xl">
+              🧾
+            </div>
+            <div class="mt-3">
+              <div class="font-extrabold text-slate-900 text-base">TA Bill</div>
+              <div class="text-xs font-bold text-slate-700 mt-0.5">₹<span id="tileTaTotal">0</span></div>
+              <div class="text-[10px] font-semibold text-slate-600 mt-0.5">Tap for GA 31 Print →</div>
+            </div>
+          </button>
+        </div>
+
+        <button onclick="openSection('conv')" class="bento-card w-full bg-[#9ce6b3] rounded-2xl px-4 py-3.5 flex items-center justify-between shadow-xs text-left">
+          <div class="flex items-center gap-3.5">
+            <div class="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-emerald-700 shadow-xs text-lg">
+              🚆
+            </div>
+            <div>
+              <div class="font-bold text-slate-900 text-sm">Conveyance Bill (अनुषंगिक बिल)</div>
+              <div class="text-[11px] font-semibold text-slate-700" id="tileConvInfo">NSZ Route Chart • ₹0</div>
+            </div>
+          </div>
+          <span class="text-slate-700 font-bold">›</span>
+        </button>
+
+        <button onclick="openSection('summary')" class="bento-card w-full bg-[#9ee0ed] rounded-2xl px-4 py-3.5 flex items-center justify-between shadow-xs text-left">
+          <div class="flex items-center gap-3.5">
+            <div class="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-cyan-700 shadow-xs text-lg">
+              📊
+            </div>
+            <div>
+              <div class="font-bold text-slate-900 text-sm">Month Summary</div>
+              <div class="text-[11px] font-semibold text-slate-700">2026 Jan – Dec Records</div>
+            </div>
+          </div>
+          <span class="text-slate-700 font-bold">›</span>
+        </button>
+
+        <button onclick="openPreview('TA')" class="bento-card w-full bg-[#f7b5b5] rounded-2xl px-4 py-3.5 flex items-center justify-between shadow-xs text-left">
+          <div class="flex items-center gap-3.5">
+            <div class="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-red-600 shadow-xs text-lg">
+              📄
+            </div>
+            <div>
+              <div class="font-bold text-slate-900 text-sm">Download / Share PDF</div>
+              <div class="text-[11px] font-semibold text-slate-700">GA 31 SRC Official DOCX Layout</div>
+            </div>
+          </div>
+          <span class="text-red-800 text-lg">🔗</span>
+        </button>
+
+        <!-- Gmail Online Cloud Sync Tile -->
+        <button onclick="openSection('gmail')" class="bento-card w-full bg-[#fce79c] rounded-2xl px-4 py-3.5 flex items-center justify-between shadow-xs text-left">
+          <div class="flex items-center gap-3.5 min-w-0">
+            <div class="w-10 h-10 rounded-xl bg-white flex items-center justify-center font-black text-base shadow-xs shrink-0">
+              <span class="text-red-500">G</span>
+            </div>
+            <div class="min-w-0">
+              <div class="font-bold text-slate-900 text-sm">Gmail Online &amp; Cloud Backup</div>
+              <div id="tileGmailStatus" class="text-[11px] font-semibold text-slate-700 truncate">Not Signed In • Tap to Connect Gmail</div>
+            </div>
+          </div>
+          <span class="text-amber-800 text-lg shrink-0">☁️</span>
+        </button>
+
+        <button onclick="openSection('settings')" class="bento-card w-full bg-[#e2e5ec] rounded-2xl px-4 py-3.5 flex items-center justify-between shadow-xs text-left">
+          <div class="flex items-center gap-3.5">
+            <div class="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-slate-700 shadow-xs text-lg">
+              ⚙️
+            </div>
+            <div>
+              <div class="font-bold text-slate-900 text-sm">Setting</div>
+              <div class="text-[11px] font-semibold text-slate-600" id="tileLockStatus">App Lock: Off</div>
+            </div>
+          </div>
+          <span class="text-slate-600 font-bold">›</span>
+        </button>
+
+        <button onclick="openSection('help')" class="bento-card w-full bg-[#0b1f3a] text-white rounded-2xl px-4 py-3.5 flex items-center justify-center gap-2.5 shadow-md">
+          <span class="text-lg">📞</span>
+          <span class="font-bold text-sm">Help &amp; Connect</span>
+        </button>
+      </div>
+
+      <!-- ==================== SUB-VIEWS CONTAINER ==================== -->
+      <div id="subViewContainer" class="hidden space-y-4">
+
+        <!-- SUB-VIEW 1: TA BILL ENTRY -->
+        <section id="view-ta" class="hidden space-y-4">
+          <div class="bg-white rounded-3xl p-4 shadow-xs border border-slate-200 space-y-3">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+              <h2 class="text-base font-bold text-[#0b1f3a]">Add TA Journey</h2>
+              <span id="taRateBadge" class="text-xs font-bold bg-blue-50 text-[#0b1f3a] px-2.5 py-1 rounded-full">Level 4 • ₹625</span>
+            </div>
+
+            <!-- Pay Level & TA Rate Quick Selector -->
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-2.5 space-y-2">
+              <div class="flex items-center justify-between gap-2">
+                <label class="text-xs font-bold text-slate-700 shrink-0">Pay Level / Rate:</label>
+                <select id="taQuickLevelSelect" onchange="handleLevelSelectChange(this.value, true)" class="flex-1 px-2.5 py-1.5 rounded-xl border border-slate-300 text-xs font-bold bg-white text-[#0b1f3a]">
+                  <option value="L1-5">Level 1 to 5 (₹625 / day)</option>
+                  <option value="L6-8">Level 6 to 8 (₹1000 / day)</option>
+                  <option value="L9-11">Level 9 to 11 (₹1125 / day)</option>
+                  <option value="L12-13">Level 12 &amp; 13 (₹1250 / day)</option>
+                  <option value="L14+">Level 14 &amp; Above (₹1500 / day)</option>
+                  <option value="CUSTOM">Custom Rate (Manual)</option>
+                </select>
+              </div>
+              <div id="taCustomRateWrap" class="hidden flex items-center justify-between gap-2 pt-1">
+                <span class="text-xs font-semibold text-slate-600">Custom Daily Rate (₹):</span>
+                <input id="taCustomRateInput" type="number" oninput="applyCustomRate(this.value)" placeholder="e.g. 625" class="w-28 px-2.5 py-1 rounded-lg border border-slate-300 text-xs font-bold text-right bg-white" />
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2.5">
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Date *</label>
+                <input id="taDate" type="date" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Distance (KM)</label>
+                <input id="taKm" type="number" oninput="checkEightKmRule(this.value)" placeholder="e.g. 45" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+              </div>
+              <div class="col-span-2">
+                <label class="block text-xs font-semibold text-slate-600 mb-1">TA Slab (%)</label>
+                <select id="taSlab" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm font-semibold bg-white">
+                  <option value="1">100% (Above 12 Hrs)</option>
+                  <option value="0.7" selected>70% (6 to 12 Hrs)</option>
+                  <option value="0.3">30% (Up to 6 Hrs)</option>
+                  <option value="0">0% (Nil)</option>
+                </select>
+              </div>
+              <div class="col-span-2">
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Object of Journey (यात्रा का उद्देश्य)</label>
+                <input id="taPurpose" type="text" placeholder="e.g. BKT AOH WORK AND OHE MAINTENANCE WORK" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm uppercase" />
+              </div>
+            </div>
+
+            <div id="eightKmAlert" class="hidden text-xs font-semibold text-amber-800 bg-amber-50 border border-amber-200 rounded-xl p-2.5">
+              ⚠️ Railway Rule: TA is admissible only for journeys beyond 8 KM from headquarters.
+            </div>
+
+            <div class="bg-blue-50/70 border border-blue-200 rounded-2xl p-3 space-y-2">
+              <div class="text-xs font-bold text-[#0b1f3a]">1. Outward Journey (जाने का विवरण)</div>
+              <div class="grid grid-cols-2 gap-2">
+                <input id="ot" type="text" placeholder="Train No. / Vehicle (e.g. DETC150/2)" class="col-span-2 px-2.5 py-2 rounded-xl border border-slate-300 text-sm bg-white uppercase" />
+                <div>
+                  <label class="block text-[10px] font-semibold text-slate-500">Time Left (प्रस्थान)</label>
+                  <input id="od" type="time" onchange="autoCalcTaSlab()" class="w-full px-2.5 py-1.5 rounded-xl border border-slate-300 text-sm bg-white" />
+                </div>
+                <div>
+                  <label class="block text-[10px] font-semibold text-slate-500">Time Arrived (आगमन)</label>
+                  <input id="oa" type="time" class="w-full px-2.5 py-1.5 rounded-xl border border-slate-300 text-sm bg-white" />
+                </div>
+                <input id="of" type="text" placeholder="From Stn *" class="px-2.5 py-2 rounded-xl border border-slate-300 text-sm bg-white uppercase" />
+                <input id="oto" type="text" placeholder="To Stn *" class="px-2.5 py-2 rounded-xl border border-slate-300 text-sm bg-white uppercase" />
+              </div>
+            </div>
+
+            <div class="bg-slate-100/80 border border-slate-200 rounded-2xl p-3 space-y-2">
+              <div class="text-xs font-bold text-slate-800">2. Return Journey (वापसी - Auto-swaps if blank)</div>
+              <div class="grid grid-cols-2 gap-2">
+                <input id="rt" type="text" placeholder="Train No. / Vehicle (Auto-copies Outward if blank)" class="col-span-2 px-2.5 py-2 rounded-xl border border-slate-300 text-sm bg-white uppercase" />
+                <div>
+                  <label class="block text-[10px] font-semibold text-slate-500">Time Left (प्रस्थान)</label>
+                  <input id="rd" type="time" class="w-full px-2.5 py-1.5 rounded-xl border border-slate-300 text-sm bg-white" />
+                </div>
+                <div>
+                  <label class="block text-[10px] font-semibold text-slate-500">Time Arrived (आगमन)</label>
+                  <input id="ra" type="time" onchange="autoCalcTaSlab()" class="w-full px-2.5 py-1.5 rounded-xl border border-slate-300 text-sm bg-white" />
+                </div>
+                <input id="rf" type="text" placeholder="From (Auto)" class="px-2.5 py-2 rounded-xl border border-slate-300 text-sm bg-white uppercase" />
+                <input id="rto" type="text" placeholder="To (Auto)" class="px-2.5 py-2 rounded-xl border border-slate-300 text-sm bg-white uppercase" />
+              </div>
+            </div>
+
+            <button onclick="addTAEntry()" class="w-full bg-[#0b1f3a] text-white font-bold py-3.5 rounded-2xl shadow-md active:scale-98 text-sm">
+              + Add TA Journey Entry
+            </button>
+          </div>
+
+          <div class="bg-white rounded-3xl p-4 shadow-xs border border-slate-200 space-y-3">
+            <div class="flex items-center justify-between">
+              <h3 class="text-sm font-bold text-[#0b1f3a]">Journeys (<span id="taCount">0</span>)</h3>
+              <button onclick="openPreview('TA')" class="bg-emerald-600 text-white text-xs font-bold px-3 py-1.5 rounded-xl">🖨️ Print TA Journal</button>
+            </div>
+            <div id="taListContainer" class="space-y-2"></div>
+            <div id="taSummaryBox" class="bg-blue-50 rounded-2xl p-3 text-xs space-y-1"></div>
+          </div>
+        </section>
+
+        <!-- SUB-VIEW 2: CONVEYANCE BILL -->
+        <section id="view-conv" class="hidden space-y-4">
+          <div class="bg-white rounded-3xl p-4 shadow-xs border border-slate-200 space-y-3">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+              <h2 class="text-base font-bold text-[#0b1f3a]">अनुषंगिक बिल (Conveyance)</h2>
+              <span class="text-[11px] font-bold bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full">NSZ Rate List</span>
+            </div>
+
+            <div class="bg-emerald-50/70 border border-emerald-200 rounded-2xl p-3 space-y-2.5">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-emerald-900">Quick Select NSZ Route:</span>
+                <div class="flex gap-1 bg-white p-0.5 rounded-lg border border-emerald-200 text-[11px] font-bold">
+                  <button type="button" id="fareDayBtn" onclick="setFareShift('DAY')" class="px-2 py-1 rounded-md bg-emerald-600 text-white">Day Bus</button>
+                  <button type="button" id="fareNightBtn" onclick="setFareShift('NIGHT')" class="px-2 py-1 rounded-md text-slate-600">Night Fare</button>
+                </div>
+              </div>
+              <select id="nszRouteSelect" onchange="applyNszRoute()" class="w-full px-3 py-2 rounded-xl border border-emerald-300 text-sm font-semibold bg-white">
+                <option value="">-- Choose Destination from NSZ (Optional) --</option>
+              </select>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2.5">
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Date *</label>
+                <input id="cDate" type="date" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Mode</label>
+                <select id="cMode" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm bg-white">
+                  <option>Bus</option>
+                  <option>Auto / Taxi</option>
+                  <option>Own Bike</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">From *</label>
+                <input id="cFrom" type="text" value="NSZ" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm uppercase" />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">To *</label>
+                <input id="cTo" type="text" placeholder="Destination" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm uppercase" />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">One-Way KM *</label>
+                <input id="cKm" type="number" placeholder="KM" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">One-Way Fare (₹) *</label>
+                <input id="cAmt" type="number" placeholder="₹" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm font-bold" />
+              </div>
+              <div class="col-span-2">
+                <label class="block text-xs font-semibold text-slate-600 mb-1">यात्रा का उद्देश्य (Purpose)</label>
+                <input id="cPurpose" type="text" value="OHE कार्य हेतु" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+              </div>
+              <div class="col-span-2 flex items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                <input id="cIncludeReturn" type="checkbox" checked class="w-4 h-4 accent-[#0b1f3a]" />
+                <label for="cIncludeReturn" class="text-xs font-semibold text-slate-700">Include Return Row (— वापसी —) automatically</label>
+              </div>
+            </div>
+
+            <button onclick="addConvEntry()" class="w-full bg-[#0b1f3a] text-white font-bold py-3.5 rounded-2xl shadow-md text-sm">
+              + Add Conveyance Entry
+            </button>
+          </div>
+
+          <div class="bg-white rounded-3xl p-4 shadow-xs border border-slate-200 space-y-3">
+            <div class="flex items-center justify-between">
+              <h3 class="text-sm font-bold text-[#0b1f3a]">Entries (<span id="convCount">0</span>)</h3>
+              <button onclick="openPreview('CONV')" class="bg-emerald-600 text-white text-xs font-bold px-3 py-1.5 rounded-xl">🖨️ Print अनुषंगिक बिल</button>
+            </div>
+            <div id="convListContainer" class="space-y-2"></div>
+            <div class="bg-emerald-50 rounded-2xl p-3 flex justify-between items-center text-sm font-extrabold text-emerald-950">
+              <span>योग (Grand Total)</span>
+              <span>₹<span id="convTotalText">0</span></span>
+            </div>
+          </div>
+        </section>
+
+        <!-- SUB-VIEW 3: PROFILE -->
+        <section id="view-profile" class="hidden space-y-4">
+          <div class="bg-white rounded-3xl p-4 shadow-xs border border-slate-200 space-y-3">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+              <h2 class="text-base font-bold text-[#0b1f3a]">Employee Profile</h2>
+              <button onclick="fillDefaultProfile()" class="text-xs font-bold bg-blue-50 text-blue-700 px-2.5 py-1 rounded-xl">⚡ Quick Fill</button>
+            </div>
+
+            <div class="flex items-center gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-200">
+              <img id="profilePreviewImg" src="https://placehold.co/96x96/e2e8f0/0b1f3a?text=AM" alt="Avatar" class="w-14 h-14 rounded-full object-cover border border-slate-300 bg-white" />
+              <div class="flex-1">
+                <label class="inline-block bg-[#0b1f3a] text-white text-xs font-bold px-3 py-2 rounded-xl cursor-pointer">
+                  📷 Upload Photo
+                  <input type="file" accept="image/*" onchange="handlePhotoUpload(event)" class="hidden" />
+                </label>
+                <p class="text-[11px] text-slate-500 mt-1">Photo saves offline &amp; syncs to Gmail cloud.</p>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 gap-2.5">
+              <div class="grid grid-cols-2 gap-2.5">
+                <div>
+                  <label class="block text-xs font-semibold text-slate-600 mb-1">Name (English)</label>
+                  <input id="empName" type="text" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-slate-600 mb-1">नाम (हिन्दी में)</label>
+                  <input id="empNameHindi" type="text" placeholder="जैसे: अमर सिंह मर्सकोले" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+                </div>
+              </div>
+              <div class="grid grid-cols-2 gap-2.5">
+                <div>
+                  <label class="block text-xs font-semibold text-slate-600 mb-1">Designation (पदनाम)</label>
+                  <input id="empDesig" type="text" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-slate-600 mb-1">PF / HRMS No.</label>
+                  <input id="empId" type="text" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+                </div>
+              </div>
+
+              <!-- Pay Level & Daily TA Rate Selector -->
+              <div class="bg-blue-50/70 border border-blue-200 rounded-2xl p-3 space-y-2.5">
+                <div>
+                  <label class="block text-xs font-bold text-[#0b1f3a] mb-1">7th CPC Pay Level (पे लेवल चुनें)</label>
+                  <select id="empPayLevel" onchange="handleLevelSelectChange(this.value, false)" class="w-full px-3 py-2 rounded-xl border border-blue-300 text-sm font-bold bg-white text-[#0b1f3a]">
+                    <option value="L1-5">Level 1 to Level 5 (₹625 / day)</option>
+                    <option value="L6-8">Level 6 to Level 8 (₹1000 / day)</option>
+                    <option value="L9-11">Level 9 to Level 11 (₹1125 / day)</option>
+                    <option value="L12-13">Level 12 &amp; Level 13 (₹1250 / day)</option>
+                    <option value="L14+">Level 14 &amp; Above (₹1500 / day)</option>
+                    <option value="CUSTOM">Custom Rate (अन्य रेट लिखें)</option>
+                  </select>
+                </div>
+                <div class="grid grid-cols-2 gap-2.5">
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Daily TA Rate (₹)</label>
+                    <input id="empRate" type="number" oninput="onManualProfileRateInput(this.value)" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm font-extrabold bg-white text-[#0b1f3a]" />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Basic Pay (वेतन)</label>
+                    <input id="empBasic" type="number" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm bg-white" />
+                  </div>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-2.5">
+                <div>
+                  <label class="block text-xs font-semibold text-slate-600 mb-1">Pay Scale / GP (वेतनमान)</label>
+                  <input id="empPayScale" type="text" placeholder="e.g. Level-4 / 2400/-" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-slate-600 mb-1">Headquarters (मुख्यालय)</label>
+                  <input id="empHq" type="text" placeholder="e.g. SSE/TRD/NSZ" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+                </div>
+              </div>
+              <div class="grid grid-cols-2 gap-2.5">
+                <div>
+                  <label class="block text-xs font-semibold text-slate-600 mb-1">Branch (शाखा)</label>
+                  <input id="empBranch" type="text" value="TRD" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-slate-600 mb-1">Division / District (मंडल)</label>
+                  <input id="empDivision" type="text" placeholder="e.g. BHOPAL" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+                </div>
+              </div>
+            </div>
+
+            <button onclick="saveProfile()" class="w-full bg-[#0b1f3a] text-white font-bold py-3.5 rounded-2xl shadow-md text-sm">
+              💾 Save Profile &amp; Sync
+            </button>
+          </div>
+        </section>
+
+        <!-- SUB-VIEW 4: MONTH SUMMARY -->
+        <section id="view-summary" class="hidden space-y-3">
+          <div class="bg-white rounded-3xl p-4 shadow-xs border border-slate-200">
+            <h2 class="text-base font-bold text-[#0b1f3a] mb-3">2026 Month-Wise Summary</h2>
+            <div id="yearSummaryList" class="space-y-2"></div>
+          </div>
+        </section>
+
+        <!-- SUB-VIEW 5: GMAIL ONLINE & CLOUD SYNC -->
+        <section id="view-gmail" class="hidden space-y-4">
+          <div class="bg-white rounded-3xl p-4 shadow-xs border border-slate-200 space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
+              <div class="flex items-center gap-2.5">
+                <div class="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center font-black text-red-600 text-base">G</div>
+                <div>
+                  <h2 class="text-base font-bold text-[#0b1f3a]">Gmail Online Cloud Sync</h2>
+                  <p class="text-[11px] text-slate-500">Project: railway-ta-ddc21</p>
+                </div>
+              </div>
+              <span id="gmailBadgeStatus" class="text-xs font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-600">Offline</span>
+            </div>
+
+            <!-- Signed Out State -->
+            <div id="gmailSignedOutBox" class="space-y-3 text-center py-2">
+              <p class="text-xs text-slate-600 leading-relaxed">
+                अपनी <b>Gmail ID</b> से साइन-इन करें ताकि आपका Profile और सभी महीनों के TA/Conveyance बिल सुरक्षित रूप से ऑनलाइन क्लाउड पर सेव रहें।
+              </p>
+              <button id="googleLoginBtn" onclick="signInWithGmail()" class="w-full bg-white border-2 border-slate-300 hover:bg-slate-50 text-slate-900 font-extrabold py-3.5 px-4 rounded-2xl shadow-xs flex items-center justify-center gap-3 text-sm active:scale-98">
+                <svg class="w-5 h-5" viewBox="0 0 48 48">
+                  <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                  <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                  <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+                  <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+                </svg>
+                <span>Sign in with Google (Gmail)</span>
+              </button>
+            </div>
+
+            <!-- Signed In State -->
+            <div id="gmailSignedInBox" class="hidden space-y-3">
+              <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-3.5 flex items-center gap-3">
+                <img id="gmailUserPhoto" src="https://placehold.co/80x80/e2e8f0/0b1f3a?text=G" alt="User" class="w-12 h-12 rounded-full object-cover border-2 border-emerald-500 bg-white shrink-0" />
+                <div class="min-w-0 flex-1">
+                  <div id="gmailUserName" class="text-sm font-extrabold text-slate-900 truncate">User Name</div>
+                  <div id="gmailUserEmail" class="text-xs font-semibold text-emerald-800 truncate">user@gmail.com</div>
+                  <div id="lastCloudSyncText" class="text-[10px] text-slate-500 mt-0.5">Auto-Sync Active</div>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-2.5">
+                <button onclick="manualPushToCloud()" class="bg-[#0b1f3a] text-white font-bold py-3 rounded-2xl text-xs shadow-xs active:scale-98">
+                  ☁️ Backup to Cloud Now
+                </button>
+                <button onclick="manualPullFromCloud()" class="bg-blue-50 text-[#0b1f3a] border border-blue-200 font-bold py-3 rounded-2xl text-xs active:scale-98">
+                  ⬇️ Restore from Cloud
+                </button>
+              </div>
+
+              <button onclick="signOutGmail()" class="w-full bg-red-50 text-red-700 border border-red-200 font-bold py-2.5 rounded-2xl text-xs active:scale-98">
+                Sign Out from Gmail
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- SUB-VIEW 6: SETTINGS (WITH 4-DIGIT APP LOCK CONTROLS) -->
+        <section id="view-settings" class="hidden space-y-4">
+          <div class="bg-white rounded-3xl p-4 shadow-xs border border-slate-200 space-y-3">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
+              <div class="flex items-center gap-2">
+                <span class="text-lg">🔐</span>
+                <div>
+                  <h2 class="text-base font-bold text-[#0b1f3a]">App Lock (4-Digit PIN)</h2>
+                  <p class="text-[11px] text-slate-500">Protect your TA &amp; Conveyance bills</p>
+                </div>
+              </div>
+              <span id="settingsLockBadge" class="text-xs font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-600">Disabled</span>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2.5">
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">New 4-Digit PIN</label>
+                <input id="newPinInput" type="password" inputmode="numeric" maxlength="4" placeholder="••••" class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-center text-lg font-extrabold tracking-[0.4em]" />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Confirm PIN</label>
+                <input id="confirmPinInput" type="password" inputmode="numeric" maxlength="4" placeholder="••••" class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-center text-lg font-extrabold tracking-[0.4em]" />
+              </div>
+            </div>
+
+            <div class="flex gap-2.5">
+              <button onclick="saveAppPin()" class="flex-1 bg-[#0b1f3a] text-white font-bold py-3 rounded-2xl text-sm shadow-xs active:scale-98">
+                🔒 Set / Change PIN
+              </button>
+              <button id="disablePinBtn" onclick="disableAppPin()" class="hidden px-4 bg-red-50 text-red-700 border border-red-200 font-bold py-3 rounded-2xl text-sm active:scale-98">
+                Disable
+              </button>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-3xl p-4 shadow-xs border border-slate-200 space-y-3">
+            <h2 class="text-base font-bold text-[#0b1f3a]">Data Backup &amp; Reset</h2>
+            <button onclick="exportBackupJson()" class="w-full bg-blue-50 text-blue-900 font-bold py-3 rounded-2xl border border-blue-200 text-sm">
+              ⬇️ Download All Data Backup (.json)
+            </button>
+            <button onclick="clearCurrentMonthData()" class="w-full bg-red-50 text-red-700 font-bold py-3 rounded-2xl border border-red-200 text-sm">
+              🗑️ Clear Selected Month Entries
+            </button>
+          </div>
+        </section>
+
+        <!-- SUB-VIEW 7: HELP & CONNECT -->
+        <section id="view-help" class="hidden space-y-3">
+          <div class="bg-white rounded-3xl p-4 shadow-xs border border-slate-200 space-y-2.5 text-sm text-slate-700">
+            <h2 class="text-base font-bold text-[#0b1f3a]">Help &amp; Railway TA Rules</h2>
+            <p>• <b>Pay Level Rates:</b> Level 1–5 (₹625), Level 6–8 (₹1000), Level 9–11 (₹1125), Level 12–13 (₹1250), Level 14+ (₹1500).</p>
+            <p>• <b>100% TA:</b> Absence from HQ exceeding 12 hours.</p>
+            <p>• <b>70% TA:</b> Absence from HQ between 6 to 12 hours.</p>
+            <p>• <b>30% TA:</b> Absence from HQ up to 6 hours (beyond 8 KM).</p>
+            <p>• <b>Install &amp; Gmail Sync:</b> App works 100% offline. Sign in with Gmail once to auto-backup your records to cloud.</p>
+          </div>
+        </section>
+
+        <!-- SUB-VIEW 8: PRINT / PDF PREVIEW -->
+        <section id="view-preview" class="hidden space-y-3">
+          <div class="no-print bg-white rounded-2xl p-2.5 shadow-xs border border-slate-200 flex items-center justify-between gap-2">
+            <div class="flex bg-slate-100 p-1 rounded-xl">
+              <button id="prevTabTA" onclick="setPreviewType('TA')" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-[#0b1f3a] text-white">TA Journal (GA 31)</button>
+              <button id="prevTabCONV" onclick="setPreviewType('CONV')" class="px-3 py-1.5 rounded-lg text-xs font-bold text-slate-700">अनुषंगिक बिल</button>
+            </div>
+            <button onclick="window.print()" class="bg-emerald-600 text-white text-xs font-bold px-3.5 py-2 rounded-xl shadow-xs">
+              🖨️ Print / Save PDF
+            </button>
+          </div>
+
+          <div id="printContainer" class="bg-white rounded-2xl p-3 shadow-sm border border-slate-300 overflow-x-auto">
+            <div id="paperContent" class="print-sheet min-w-[920px]"></div>
+          </div>
+        </section>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== FIREBASE ONLINE SYNC & GMAIL AUTH MODULE ==================== -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+    import {
+      getAuth,
+      GoogleAuthProvider,
+      signInWithPopup,
+      signOut,
+      onAuthStateChanged
+    } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+    import {
+      getFirestore,
+      doc,
+      setDoc,
+      getDoc
+    } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCH6eTyTdxL4N4SNWcHm-vguv1KVbsQcz4",
+      authDomain: "railway-ta-ddc21.firebaseapp.com",
+      projectId: "railway-ta-ddc21",
+      storageBucket: "railway-ta-ddc21.firebasestorage.app",
+      messagingSenderId: "898439268763",
+      appId: "1:898439268763:web:63b532828683631080393e",
+      measurementId: "G-CQH8SD3RE4"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: "select_account" });
+
+    let currentFirebaseUser = null;
+    let syncDebounceTimer = null;
+
+    function updateGmailUI(user) {
+      const signedOutBox = document.getElementById("gmailSignedOutBox");
+      const signedInBox = document.getElementById("gmailSignedInBox");
+      const tileStatus = document.getElementById("tileGmailStatus");
+      const badgeStatus = document.getElementById("gmailBadgeStatus");
+      const cloudPill = document.getElementById("cloudStatusPill");
+
+      if (user) {
+        currentFirebaseUser = user;
+        signedOutBox.classList.add("hidden");
+        signedInBox.classList.remove("hidden");
+
+        document.getElementById("gmailUserName").textContent = user.displayName || "Railway Employee";
+        document.getElementById("gmailUserEmail").textContent = user.email || "";
+        if (user.photoURL) {
+          document.getElementById("gmailUserPhoto").src = user.photoURL;
+        }
+
+        tileStatus.textContent = `Connected: ${user.email}`;
+        badgeStatus.textContent = "Online Synced";
+        badgeStatus.className = "text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800";
+        cloudPill.textContent = "☁️ Gmail Synced";
+        cloudPill.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-200 border border-emerald-400/30";
+      } else {
+        currentFirebaseUser = null;
+        signedOutBox.classList.remove("hidden");
+        signedInBox.classList.add("hidden");
+
+        tileStatus.textContent = "Not Signed In • Tap to Connect Gmail";
+        badgeStatus.textContent = "Offline";
+        badgeStatus.className = "text-xs font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-600";
+        cloudPill.textContent = "● Offline";
+        cloudPill.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/10 text-amber-200";
+      }
+    }
+
+    async function pushDataToFirestore(silent = true) {
+      if (!currentFirebaseUser || !window.appData) return;
+      try {
+        const userRef = doc(db, "railway_ta_users", currentFirebaseUser.uid);
+        const nowStr = new Date().toLocaleString("en-IN");
+        await setDoc(userRef, {
+          email: currentFirebaseUser.email || "",
+          displayName: currentFirebaseUser.displayName || "",
+          updatedAt: nowStr,
+          appData: JSON.stringify(window.appData)
+        }, { merge: true });
+
+        const syncTxt = document.getElementById("lastCloudSyncText");
+        if (syncTxt) syncTxt.textContent = `Last Synced: ${nowStr}`;
+        if (!silent && window.showToast) {
+          window.showToast("Cloud backup complete!", "☁️");
+        }
+      } catch (err) {
+        console.error("Cloud push error:", err);
+        if (!silent && window.showToast) {
+          window.showToast("Sync failed. Check internet connection.", "⚠️");
+        }
+      }
+    }
+
+    async function pullDataFromFirestore(user, isManual = false) {
+      if (!user) return;
+      try {
+        const userRef = doc(db, "railway_ta_users", user.uid);
+        const snap = await getDoc(userRef);
+
+        if (snap.exists() && snap.data().appData) {
+          const cloudParsed = JSON.parse(snap.data().appData);
+          const localRecordsCount = Object.values(window.appData.records || {}).reduce(
+            (acc, m) => acc + (m.ta?.length || 0) + (m.conv?.length || 0),
+            0
+          );
+          const cloudRecordsCount = Object.values(cloudParsed.records || {}).reduce(
+            (acc, m) => acc + (m.ta?.length || 0) + (m.conv?.length || 0),
+            0
+          );
+
+          if (isManual || localRecordsCount === 0 || cloudRecordsCount >= localRecordsCount) {
+            window.appData = {
+              ...window.appData,
+              ...cloudParsed,
+              profile: { ...window.appData.profile, ...(cloudParsed.profile || {}) },
+              records: cloudParsed.records || {}
+            };
+            if (!window.appData.profile.photo && user.photoURL) {
+              window.appData.profile.photo = user.photoURL;
+            }
+            window.saveToStorage(true);
+            window.applyProfileUI();
+            window.refreshDashboard();
+            window.updateLockSettingsUI();
+
+            const syncTxt = document.getElementById("lastCloudSyncText");
+            if (syncTxt && snap.data().updatedAt) {
+              syncTxt.textContent = `Restored from: ${snap.data().updatedAt}`;
+            }
+            if (isManual && window.showToast) {
+              window.showToast("Cloud data restored!", "✅");
+            }
+          } else {
+            await pushDataToFirestore(true);
+          }
+        } else {
+          if (!window.appData.profile.photo && user.photoURL) {
+            window.appData.profile.photo = user.photoURL;
+            window.applyProfileUI();
+          }
+          await pushDataToFirestore(true);
+        }
+      } catch (err) {
+        console.error("Cloud pull error:", err);
+        if (isManual && window.showToast) {
+          window.showToast("Could not fetch cloud data", "⚠️");
+        }
+      }
+    }
+
+    onAuthStateChanged(auth, async (user) => {
+      updateGmailUI(user);
+      if (user) {
+        await pullDataFromFirestore(user, false);
+      }
+    });
+
+    window.signInWithGmail = async function () {
+      try {
+        const res = await signInWithPopup(auth, provider);
+        if (res.user) {
+          if (!window.appData.profile.photo && res.user.photoURL) {
+            window.appData.profile.photo = res.user.photoURL;
+          }
+          window.saveToStorage(true);
+          window.applyProfileUI();
+          if (window.showToast) window.showToast(`Signed in as ${res.user.email}`, "✅");
+        }
+      } catch (err) {
+        console.error("Gmail Sign-In Error:", err);
+        const msg = err.code === "auth/unauthorized-domain"
+          ? "Domain not authorized in Firebase Console"
+          : (err.message || "Sign-in cancelled");
+        if (window.showToast) window.showToast(msg, "⚠️");
+      }
+    };
+
+    window.signOutGmail = async function () {
+      if (!(await window.askConfirm("Sign Out Gmail?", "Local offline data will remain on this phone."))) return;
+      await signOut(auth);
+      if (window.showToast) window.showToast("Signed out from Gmail", "👋");
+    };
+
+    window.manualPushToCloud = function () {
+      pushDataToFirestore(false);
+    };
+
+    window.manualPullFromCloud = function () {
+      if (currentFirebaseUser) pullDataFromFirestore(currentFirebaseUser, true);
+    };
+
+    window.triggerAutoCloudSync = function () {
+      if (!currentFirebaseUser) return;
+      clearTimeout(syncDebounceTimer);
+      syncDebounceTimer = setTimeout(() => {
+        pushDataToFirestore(true);
+      }, 1500);
+    };
+  </script>
+
+  <!-- ==================== MAIN OFFLINE & PWA APP SCRIPT ==================== -->
+  <script>
+    // ==================== PWA MANIFEST & INSTALL SETUP ====================
+    let deferredInstallPrompt = null;
+
+    function setupPwaManifestAndSw() {
+      // Create crisp SVG Gold Loco Icon Data URL
+      const svgIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+        <rect width="512" height="512" rx="112" fill="#0b1f3a"/>
+        <circle cx="256" cy="256" r="205" fill="#132d52" stroke="#f3d085" stroke-width="12"/>
+        <rect x="115" y="195" width="95" height="100" rx="10" fill="#0e2647" stroke="#f3d085" stroke-width="10"/>
+        <rect x="210" y="205" width="145" height="90" fill="#0e2647" stroke="#f3d085" stroke-width="10"/>
+        <ellipse cx="355" cy="250" rx="30" ry="45" fill="#173866" stroke="#f3d085" stroke-width="10"/>
+        <circle cx="362" cy="250" r="14" fill="#fff3c4"/>
+        <rect x="310" y="145" width="32" height="60" rx="6" fill="#f3d085"/>
+        <circle cx="165" cy="315" r="24" fill="#0b1f3a" stroke="#f3d085" stroke-width="10"/>
+        <circle cx="235" cy="315" r="24" fill="#0b1f3a" stroke="#f3d085" stroke-width="10"/>
+        <circle cx="305" cy="318" r="20" fill="#0b1f3a" stroke="#f3d085" stroke-width="10"/>
+        <line x1="95" y1="348" x2="415" y2="348" stroke="#f3d085" stroke-width="12" stroke-linecap="round"/>
+      </svg>`;
+      const iconDataUrl = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svgIcon);
+
+      const appleIcon = document.getElementById("appleTouchIconLink");
+      if (appleIcon) appleIcon.href = iconDataUrl;
+
+      const manifestObj = {
+        name: "Indian Railways TA & Conveyance",
+        short_name: "Railway TA",
+        description: "Offline & Gmail Synced Indian Railways TA & Conveyance Calculator",
+        start_url: window.location.href.split("#")[0],
+        scope: "./",
+        display: "standalone",
+        orientation: "portrait",
+        background_color: "#0b1f3a",
+        theme_color: "#0b1f3a",
+        icons: [
+          { src: iconDataUrl, sizes: "192x192", type: "image/svg+xml", purpose: "any maskable" },
+          { src: iconDataUrl, sizes: "512x512", type: "image/svg+xml", purpose: "any maskable" }
+        ]
+      };
+
+      const manifestBlob = new Blob([JSON.stringify(manifestObj)], { type: "application/manifest+json" });
+      const manifestUrl = URL.createObjectURL(manifestBlob);
+      const manifestLink = document.getElementById("pwaManifestLink");
+      if (manifestLink) manifestLink.href = manifestUrl;
+
+      // Register lightweight Service Worker on HTTPS / localhost so Chrome enables Install prompt
+      if ("serviceWorker" in navigator && (window.location.protocol === "https:" || window.location.hostname === "localhost")) {
+        const swCode = `
+          const CACHE_NAME = 'railway-ta-pwa-v1';
+          self.addEventListener('install', (e) => {
+            self.skipWaiting();
+          });
+          self.addEventListener('activate', (e) => {
+            e.waitUntil(self.clients.claim());
+          });
+          self.addEventListener('fetch', (e) => {
+            if (e.request.method !== 'GET') return;
+            e.respondWith(
+              fetch(e.request).then((res) => {
+                const clone = res.clone();
+                caches.open(CACHE_NAME).then((cache) => cache.put(e.request, clone)).catch(() => {});
+                return res;
+              }).catch(() => caches.match(e.request))
+            );
+          });
+        `;
+        const swBlob = new Blob([swCode], { type: "application/javascript" });
+        const swUrl = URL.createObjectURL(swBlob);
+        navigator.serviceWorker.register(swUrl).catch(() => {});
+      }
+
+      // Hide install banner if already running in standalone installed mode
+      const isStandalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+      if (isStandalone) {
+        const banner = document.getElementById("installAppBanner");
+        if (banner) banner.classList.add("hidden");
+      }
+    }
+
+    window.addEventListener("beforeinstallprompt", (e) => {
+      e.preventDefault();
+      deferredInstallPrompt = e;
+      const banner = document.getElementById("installAppBanner");
+      if (banner) banner.classList.remove("hidden");
+    });
+
+    window.addEventListener("appinstalled", () => {
+      deferredInstallPrompt = null;
+      const banner = document.getElementById("installAppBanner");
+      if (banner) banner.classList.add("hidden");
+      showToast("Railway TA App Installed!", "🎉");
+    });
+
+    async function triggerInstallApp() {
+      if (deferredInstallPrompt) {
+        deferredInstallPrompt.prompt();
+        const { outcome } = await deferredInstallPrompt.userChoice;
+        if (outcome === "accepted") {
+          deferredInstallPrompt = null;
+          document.getElementById("installAppBanner").classList.add("hidden");
+        }
+      } else {
+        document.getElementById("installHelpModal").classList.remove("hidden");
+      }
+    }
+
+    // ==================== PAY LEVEL TO TA RATE MAPPING ====================
+    const PAY_LEVEL_RATES = {
+      "L1-5":   { label: "Level 1–5",   rate: 625 },
+      "L6-8":   { label: "Level 6–8",   rate: 1000 },
+      "L9-11":  { label: "Level 9–11",  rate: 1125 },
+      "L12-13": { label: "Level 12–13", rate: 1250 },
+      "L14+":   { label: "Level 14+",   rate: 1500 }
+    };
+
+    // ==================== STATE & OFFLINE STORAGE ====================
+    const STORAGE_KEY = "rail_ta_conv_offline_v3";
+    window.appData = {
+      month: new Date().toISOString().slice(0, 7),
+      fareShift: "DAY",
+      previewType: "TA",
+      appPin: "",
+      profile: {
+        name: "Amar Singh Marskolle",
+        nameHindi: "अमर सिंह मर्सकोले",
+        desig: "Technician-II (TRD)",
+        empid: "",
+        payLevel: "L1-5",
+        rate: "625",
+        basic: "29200",
+        payScale: "Level-4 / 2400/-",
+        branch: "TRD",
+        hq: "SSE/TRD/NSZ",
+        division: "BHOPAL",
+        photo: ""
+      },
+      records: {}
+    };
+
+    function loadFromStorage() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          window.appData = {
+            ...window.appData,
+            ...parsed,
+            profile: { ...window.appData.profile, ...(parsed.profile || {}) },
+            records: parsed.records || {}
+          };
+          if (!window.appData.profile.payLevel) {
+            window.appData.profile.payLevel = detectLevelFromRate(window.appData.profile.rate);
+          }
+        }
+      } catch (e) {}
+    }
+
+    function detectLevelFromRate(rateVal) {
+      const r = Number(rateVal);
+      if (r === 625) return "L1-5";
+      if (r === 1000) return "L6-8";
+      if (r === 1125) return "L9-11";
+      if (r === 1250) return "L12-13";
+      if (r === 1500) return "L14+";
+      return "CUSTOM";
+    }
+
+    window.saveToStorage = function (skipCloud = false) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(window.appData));
+        if (!skipCloud && typeof window.triggerAutoCloudSync === "function") {
+          window.triggerAutoCloudSync();
+        }
+      } catch (e) {
+        showToast("Storage limit reached", "⚠️");
+      }
+    };
+
+    // ==================== LEVEL & RATE SELECTION LOGIC ====================
+    function recalculateCurrentMonthAmounts() {
+      const rate = Number(window.appData.profile.rate || 625);
+      const bucket = getMonthBucket();
+      bucket.ta.forEach((item) => {
+        item.amount = rate * Number(item.slab || 0);
+      });
+    }
+
+    function handleLevelSelectChange(levelKey, isFromTaTab = false) {
+      window.appData.profile.payLevel = levelKey;
+      if (PAY_LEVEL_RATES[levelKey]) {
+        window.appData.profile.rate = String(PAY_LEVEL_RATES[levelKey].rate);
+      }
+      recalculateCurrentMonthAmounts();
+      saveToStorage();
+      applyProfileUI();
+      refreshDashboard();
+
+      if (isFromTaTab) {
+        const info = PAY_LEVEL_RATES[levelKey];
+        showToast(info ? `${info.label} Selected (₹${info.rate}/day)` : "Custom Rate Mode", "💰");
+      }
+    }
+
+    function applyCustomRate(val) {
+      const num = Number(val);
+      if (num > 0) {
+        window.appData.profile.payLevel = "CUSTOM";
+        window.appData.profile.rate = String(num);
+        recalculateCurrentMonthAmounts();
+        saveToStorage();
+        applyProfileUI();
+        refreshDashboard();
+      }
+    }
+
+    function onManualProfileRateInput(val) {
+      const detected = detectLevelFromRate(val);
+      window.appData.profile.payLevel = detected;
+      $("empPayLevel").value = detected;
+    }
+
+    // ==================== 4-DIGIT PIN APP LOCK LOGIC ====================
+    let enteredPin = "";
+
+    window.updateLockSettingsUI = function () {
+      const hasPin = Boolean(window.appData.appPin && window.appData.appPin.length === 4);
+      const badge = document.getElementById("settingsLockBadge");
+      const disableBtn = document.getElementById("disablePinBtn");
+      const tileStatus = document.getElementById("tileLockStatus");
+      const quickLockBtn = document.getElementById("quickLockNowBtn");
+
+      if (badge) {
+        badge.textContent = hasPin ? "Enabled (4-Digit PIN)" : "Disabled";
+        badge.className = hasPin
+          ? "text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800"
+          : "text-xs font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-600";
+      }
+      if (disableBtn) disableBtn.classList.toggle("hidden", !hasPin);
+      if (tileStatus) tileStatus.textContent = hasPin ? "App Lock: Active 🔒" : "App Lock: Off";
+      if (quickLockBtn) quickLockBtn.classList.toggle("hidden", !hasPin);
+    };
+
+    function checkAndShowAppLock() {
+      const lockScreen = document.getElementById("appLockOverlay");
+      if (!lockScreen) return;
+      if (window.appData.appPin && window.appData.appPin.length === 4) {
+        enteredPin = "";
+        renderPinDots();
+        document.getElementById("pinErrorText").textContent = "";
+        lockScreen.classList.remove("hidden-lock");
+      } else {
+        lockScreen.classList.add("hidden-lock");
+      }
+    }
+
+    function lockAppNow() {
+      if (!window.appData.appPin || window.appData.appPin.length !== 4) return;
+      checkAndShowAppLock();
+      showToast("App Locked", "🔒");
+    }
+
+    function renderPinDots() {
+      for (let i = 0; i < 4; i++) {
+        const dot = document.getElementById("dot" + i);
+        if (dot) dot.classList.toggle("filled", i < enteredPin.length);
+      }
+    }
+
+    function pressPinKey(digit) {
+      if (enteredPin.length >= 4) return;
+      enteredPin += digit;
+      renderPinDots();
+      document.getElementById("pinErrorText").textContent = "";
+
+      if (enteredPin.length === 4) {
+        setTimeout(() => {
+          if (enteredPin === window.appData.appPin) {
+            document.getElementById("appLockOverlay").classList.add("hidden-lock");
+            enteredPin = "";
+            renderPinDots();
+          } else {
+            const dotsBox = document.getElementById("pinDotsContainer");
+            dotsBox.classList.remove("pin-shake");
+            void dotsBox.offsetWidth;
+            dotsBox.classList.add("pin-shake");
+            document.getElementById("pinErrorText").textContent = "Incorrect PIN. Try again.";
+            enteredPin = "";
+            renderPinDots();
+          }
+        }, 140);
+      }
+    }
+
+    function backspacePinEntry() {
+      if (!enteredPin.length) return;
+      enteredPin = enteredPin.slice(0, -1);
+      renderPinDots();
+    }
+
+    function clearPinEntry() {
+      enteredPin = "";
+      renderPinDots();
+      document.getElementById("pinErrorText").textContent = "";
+    }
+
+    function saveAppPin() {
+      const p1 = document.getElementById("newPinInput").value.trim();
+      const p2 = document.getElementById("confirmPinInput").value.trim();
+      if (!/^\d{4}$/.test(p1)) {
+        showToast("Please enter a valid 4-digit numeric PIN", "⚠️");
+        return;
+      }
+      if (p1 !== p2) {
+        showToast("Both PIN fields do not match!", "⚠️");
+        return;
+      }
+      window.appData.appPin = p1;
+      saveToStorage();
+      document.getElementById("newPinInput").value = "";
+      document.getElementById("confirmPinInput").value = "";
+      updateLockSettingsUI();
+      showToast("4-Digit App Lock Enabled!", "🔒");
+    }
+
+    async function disableAppPin() {
+      if (!(await askConfirm("Disable App Lock?", "Remove 4-digit PIN protection from this app?"))) return;
+      window.appData.appPin = "";
+      saveToStorage();
+      updateLockSettingsUI();
+      showToast("App Lock Disabled", "🔓");
+    }
+
+    // ==================== SPLASH SCREEN CONTROLLER ====================
+    let splashTimer = null;
+
+    function playSplashAnimation() {
+      const splash = document.getElementById("splashScreen");
+      const bar = document.getElementById("splashProgressBar");
+      const pctText = document.getElementById("splashPercentText");
+      if (!splash || !bar) return;
+
+      checkAndShowAppLock();
+
+      clearInterval(splashTimer);
+      splash.classList.remove("hide-splash");
+      bar.style.width = "0%";
+      if (pctText) pctText.textContent = "Loading App... 0%";
+
+      let progress = 0;
+      splashTimer = setInterval(() => {
+        progress += 5;
+        if (progress > 100) progress = 100;
+        bar.style.width = progress + "%";
+        if (pctText) pctText.textContent = `Loading App... ${progress}%`;
+
+        if (progress >= 100) {
+          clearInterval(splashTimer);
+          setTimeout(() => {
+            splash.classList.add("hide-splash");
+          }, 280);
+        }
+      }, 150);
+    }
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") {
+        playSplashAnimation();
+      }
+    });
+
+    // ==================== NSZ CONVEYANCE ALLOWANCE RATE LIST ====================
+    const NSZ_ROUTES = [
+      { to: "CHOPRA", km: 6, day: 40, night: 50 },
+      { to: "SUW STN", km: 13, day: 50, night: 60 },
+      { to: "BVB IBH", km: 18, day: 60, night: 70 },
+      { to: "BVB STN", km: 20, day: 70, night: 80 },
+      { to: "DWG SP", km: 30, day: 90, night: 110 },
+      { to: "DWG STN", km: 30, day: 90, night: 110 },
+      { to: "BPL SP", km: 5, day: 40, night: 50 },
+      { to: "SHRN STN", km: 12, day: 50, night: 60 },
+      { to: "RKMP", km: 10, day: 50, night: 50 },
+      { to: "MSO STN", km: 20, day: 70, night: 80 },
+      { to: "MSO SP", km: 22, day: 80, night: 80 },
+      { to: "MDDP", km: 28, day: 90, night: 100 },
+      { to: "ITY", km: 35, day: 90, night: 110 },
+      { to: "ODG STN", km: 41, day: 90, night: 110 },
+      { to: "UMARIYA", km: 40, day: 90, night: 110 },
+      { to: "BKA IBH", km: 42, day: 100, night: 120 },
+      { to: "BKA STN", km: 52, day: 100, night: 130 },
+      { to: "CHQ STN", km: 62, day: 120, night: 130 },
+      { to: "MIG STN", km: 70, day: 120, night: 130 },
+      { to: "BNI STN", km: 70, day: 120, night: 130 },
+      { to: "BNI IBH", km: 75, day: 120, night: 130 },
+      { to: "BQE STN", km: 23, day: 80, night: 100 },
+      { to: "LC 256", km: 13, day: 60, night: 60 },
+      { to: "BKA SSP", km: 45, day: 100, night: 100 },
+      { to: "ODG TSS", km: 38, day: 90, night: 90 }
+    ];
+
+    function getMonthBucket(m = window.appData.month) {
+      if (!window.appData.records[m]) window.appData.records[m] = { ta: [], conv: [] };
+      return window.appData.records[m];
+    }
+
+    // ==================== HELPERS ====================
+    const $ = (id) => document.getElementById(id);
+    const esc = (s) => String(s || "").replace(/[&<>"']/g, (c) => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+    }[c]));
+    const money = (n) => Number(n || 0).toFixed(2);
+
+    let toastTimer = null;
+    window.showToast = function (msg, icon = "✅") {
+      $("toastMsg").textContent = msg;
+      $("toastIcon").textContent = icon;
+      $("toastBox").classList.remove("hidden");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => $("toastBox").classList.add("hidden"), 2600);
+    };
+
+    window.askConfirm = function (title, text) {
+      return new Promise((resolve) => {
+        $("confirmTitle").textContent = title;
+        $("confirmText").textContent = text;
+        $("confirmModal").classList.remove("hidden");
+        $("confirmOkBtn").onclick = () => { $("confirmModal").classList.add("hidden"); resolve(true); };
+        $("confirmCancelBtn").onclick = () => { $("confirmModal").classList.add("hidden"); resolve(false); };
+      });
+    };
+
+    function numberToIndianWords(n) {
+      n = Math.round(Number(n) || 0);
+      if (n === 0) return "Rupees Zero Only";
+      const a = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
+      const b = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+      const under = (x) => (x < 20 ? a[x] : b[Math.floor(x / 10)] + (x % 10 ? " " + a[x % 10] : ""));
+      const group = (x) => (x >= 100 ? a[Math.floor(x / 100)] + " Hundred " + under(x % 100) : under(x));
+      let out = "";
+      [["Crore", 10000000], ["Lakh", 100000], ["Thousand", 1000], ["", 1]].forEach(([label, v]) => {
+        const q = Math.floor(n / v);
+        if (q) { out += group(q) + (label ? " " + label : "") + " "; n %= v; }
+      });
+      return "Rupees " + out.trim() + " Only";
+    }
+
+    function numberToUpperWordsNoRupees(n) {
+      n = Math.round(Number(n) || 0);
+      if (n === 0) return "ZERO";
+      const a = ["", "ONE", "TWO", "THREE", "FOUR", "FIVE", "SIX", "SEVEN", "EIGHT", "NINE", "TEN", "ELEVEN", "TWELVE", "THIRTEEN", "FOURTEEN", "FIFTEEN", "SIXTEEN", "SEVENTEEN", "EIGHTEEN", "NINETEEN"];
+      const b = ["", "", "TWENTY", "THIRTY", "FORTY", "FIFTY", "SIXTY", "SEVENTY", "EIGHTY", "NINETY"];
+      const under = (x) => (x < 20 ? a[x] : b[Math.floor(x / 10)] + (x % 10 ? " " + a[x % 10] : ""));
+      const group = (x) => (x >= 100 ? a[Math.floor(x / 100)] + " HUNDRED " + under(x % 100) : under(x));
+      let out = "";
+      [["CRORE", 10000000], ["LAKH", 100000], ["THOUSAND", 1000], ["", 1]].forEach(([label, v]) => {
+        const q = Math.floor(n / v);
+        if (q) { out += group(q) + (label ? " " + label : "") + " "; n %= v; }
+      });
+      return out.trim();
+    }
+
+    function formatMonthName(ym) {
+      if (!ym || !ym.includes("-")) return ym;
+      const [y, m] = ym.split("-");
+      const names = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+      return `${names[Number(m) - 1] || m} ${y}`;
+    }
+
+    function formatHindiMonth(ym) {
+      if (!ym || !ym.includes("-")) return "";
+      const m = Number(ym.split("-")[1]);
+      const hindi = ["जनवरी", "फरवरी", "मार्च", "अप्रैल", "मई", "जून", "जुलाई", "अगस्त", "सितम्बर", "अक्टूबर", "नवम्बर", "दिसम्बर"];
+      return hindi[m - 1] || "";
+    }
+
+    function formatDocxDate(iso) {
+      if (!iso || !iso.includes("-")) return iso;
+      const [y, m, d] = iso.split("-");
+      return `${d}/${m}/${y}`;
+    }
+
+    function formatShortDate(iso) {
+      if (!iso || !iso.includes("-")) return iso;
+      const [y, m, d] = iso.split("-");
+      return `${d}-${m}-${y.slice(2)}`;
+    }
+
+    // ==================== NAVIGATION ====================
+    function goHome() {
+      $("homeDashboard").classList.remove("hidden");
+      $("subViewContainer").classList.add("hidden");
+      $("backHomeBtn").classList.add("hidden");
+      $("topHeaderTitle").textContent = "Indian Railways";
+      refreshDashboard();
+    }
+
+    function openSection(sec) {
+      $("homeDashboard").classList.add("hidden");
+      $("subViewContainer").classList.remove("hidden");
+      $("backHomeBtn").classList.remove("hidden");
+
+      ["ta", "conv", "profile", "summary", "gmail", "settings", "help", "preview"].forEach((id) => {
+        $("view-" + id).classList.toggle("hidden", id !== sec);
+      });
+
+      const titles = {
+        ta: "TA Bill Entry",
+        conv: "अनुषंगिक बिल (Conveyance)",
+        profile: "Employee Profile",
+        summary: "2026 Month Summary",
+        gmail: "Gmail Online Sync",
+        settings: "Settings & App Lock",
+        help: "Help & Rules",
+        preview: "GA 31 Official Print / PDF"
+      };
+      $("topHeaderTitle").textContent = titles[sec] || "Indian Railways";
+
+      if (sec === "summary") renderYearSummary();
+      if (sec === "preview") renderOfficialPaper();
+      if (sec === "settings") updateLockSettingsUI();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    // ==================== PROFILE & MONTH ====================
+    window.applyProfileUI = function () {
+      const p = window.appData.profile;
+      const levelKey = p.payLevel || detectLevelFromRate(p.rate);
+      const levelShort = PAY_LEVEL_RATES[levelKey]?.label || "Custom";
+
+      $("empName").value = p.name || "";
+      $("empNameHindi").value = p.nameHindi || "";
+      $("empDesig").value = p.desig || "";
+      $("empId").value = p.empid || "";
+      $("empPayLevel").value = levelKey;
+      $("empRate").value = p.rate || "625";
+      $("empBasic").value = p.basic || "";
+      $("empPayScale").value = p.payScale || "";
+      $("empBranch").value = p.branch || "TRD";
+      $("empHq").value = p.hq || "";
+      $("empDivision").value = p.division || "";
+
+      // Sync TA tab quick level selector
+      $("taQuickLevelSelect").value = levelKey;
+      $("taCustomRateWrap").classList.toggle("hidden", levelKey !== "CUSTOM");
+      if (levelKey === "CUSTOM") {
+        $("taCustomRateInput").value = p.rate || "";
+      }
+
+      const shortName = (p.name || "AMAR SINGH M.").toUpperCase().slice(0, 16);
+      $("headerShortName").textContent = shortName;
+      $("taRateBadge").textContent = `${levelShort} • ₹${p.rate || 625}`;
+      $("tileLevelInfo").textContent = `${levelShort} • ₹${p.rate || 625}`;
+
+      if (p.photo) {
+        $("headerAvatar").src = p.photo;
+        $("profilePreviewImg").src = p.photo;
+      }
+    };
+
+    function saveProfile() {
+      const rateVal = $("empRate").value || "625";
+      const levelVal = $("empPayLevel").value || detectLevelFromRate(rateVal);
+      window.appData.profile = {
+        ...window.appData.profile,
+        name: $("empName").value.trim(),
+        nameHindi: $("empNameHindi").value.trim(),
+        desig: $("empDesig").value.trim(),
+        empid: $("empId").value.trim(),
+        payLevel: levelVal,
+        rate: rateVal,
+        basic: $("empBasic").value.trim(),
+        payScale: $("empPayScale").value.trim(),
+        branch: $("empBranch").value.trim(),
+        hq: $("empHq").value.trim(),
+        division: $("empDivision").value.trim()
+      };
+      recalculateCurrentMonthAmounts();
+      saveToStorage();
+      applyProfileUI();
+      refreshDashboard();
+      showToast("Profile & Pay Level saved!", "💾");
+    }
+
+    function fillDefaultProfile() {
+      $("empName").value = "Amar Singh Marskolle";
+      $("empNameHindi").value = "अमर सिंह मर्सकोले";
+      $("empDesig").value = "Technician-II (TRD)";
+      $("empPayLevel").value = "L1-5";
+      $("empRate").value = "625";
+      $("empBasic").value = "29200";
+      $("empPayScale").value = "Level-4 / 2400/-";
+      $("empBranch").value = "TRD";
+      $("empHq").value = "SSE/TRD/NSZ";
+      $("empDivision").value = "BHOPAL";
+      saveProfile();
+    }
+
+    function handlePhotoUpload(e) {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        window.appData.profile.photo = ev.target.result;
+        saveToStorage();
+        applyProfileUI();
+        showToast("Profile photo updated!", "📷");
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function changeActiveMonth(newMonth) {
+      if (!newMonth) return;
+      window.appData.month = newMonth;
+      saveToStorage();
+      $("dashMonthPicker").value = newMonth;
+      $("dashMonthLabel").textContent = newMonth;
+      $("topHeaderSub").textContent = `Offline Ready • ${newMonth.split("-")[0]}`;
+      $("taDate").value = `${newMonth}-01`;
+      $("cDate").value = `${newMonth}-01`;
+      refreshDashboard();
+      showToast(`Month: ${formatMonthName(newMonth)}`, "📅");
+    }
+
+    // ==================== TA BILL LOGIC ====================
+    function checkEightKmRule(val) {
+      const km = Number(val);
+      $("eightKmAlert").classList.toggle("hidden", !(km > 0 && km <= 8));
+    }
+
+    function autoCalcTaSlab() {
+      const dep = $("od").value;
+      const arr = $("ra").value;
+      if (!dep || !arr) return;
+      const [dh, dm] = dep.split(":").map(Number);
+      const [ah, am] = arr.split(":").map(Number);
+      let mins = (ah * 60 + am) - (dh * 60 + dm);
+      if (mins < 0) mins += 24 * 60;
+      const hrs = mins / 60;
+      if (hrs > 12) $("taSlab").value = "1";
+      else if (hrs >= 6) $("taSlab").value = "0.7";
+      else $("taSlab").value = "0.3";
+    }
+
+    function addTAEntry() {
+      const date = $("taDate").value;
+      const ofVal = $("of").value.trim().toUpperCase();
+      const otoVal = $("oto").value.trim().toUpperCase();
+      const otVal = $("ot").value.trim().toUpperCase();
+      if (!date || !ofVal || !otoVal) {
+        showToast("Date, From, and To are required!", "⚠️");
+        return;
+      }
+      const rate = Number(window.appData.profile.rate || 625);
+      const slab = Number($("taSlab").value);
+      const bucket = getMonthBucket();
+
+      bucket.ta.push({
+        date,
+        km: $("taKm").value.trim(),
+        slab,
+        percent: Math.round(slab * 100),
+        purpose: $("taPurpose").value.trim().toUpperCase(),
+        amount: rate * slab,
+        o: [otVal, $("od").value, $("oa").value, ofVal, otoVal],
+        r: [
+          $("rt").value.trim().toUpperCase() || otVal,
+          $("rd").value,
+          $("ra").value,
+          $("rf").value.trim().toUpperCase() || otoVal,
+          $("rto").value.trim().toUpperCase() || ofVal
+        ]
+      });
+      bucket.ta.sort((a, b) => a.date.localeCompare(b.date));
+      saveToStorage();
+
+      ["taKm", "taPurpose", "ot", "od", "oa", "of", "oto", "rt", "rd", "ra", "rf", "rto"].forEach((id) => $(id).value = "");
+      $("eightKmAlert").classList.add("hidden");
+      refreshDashboard();
+      showToast("TA Journey added!", "🚆");
+    }
+
+    async function deleteTAEntry(idx) {
+      if (!(await askConfirm("Delete TA Entry?", "Remove this journey entry?"))) return;
+      getMonthBucket().ta.splice(idx, 1);
+      saveToStorage();
+      refreshDashboard();
+      showToast("Entry removed", "🗑️");
+    }
+
+    // ==================== CONVEYANCE (NSZ CHART) LOGIC ====================
+    function populateNszDropdown() {
+      const sel = $("nszRouteSelect");
+      sel.innerHTML = `<option value="">-- Choose Destination from NSZ (${window.appData.fareShift}) --</option>` +
+        NSZ_ROUTES.map((r, i) => `<option value="${i}">NSZ → ${r.to} (${r.km} KM | Day ₹${r.day} / Night ₹${r.night})</option>`).join("");
+    }
+
+    function setFareShift(shift) {
+      window.appData.fareShift = shift;
+      $("fareDayBtn").className = shift === "DAY" ? "px-2 py-1 rounded-md bg-emerald-600 text-white" : "px-2 py-1 rounded-md text-slate-600";
+      $("fareNightBtn").className = shift === "NIGHT" ? "px-2 py-1 rounded-md bg-[#0b1f3a] text-white" : "px-2 py-1 rounded-md text-slate-600";
+      populateNszDropdown();
+      applyNszRoute();
+    }
+
+    function applyNszRoute() {
+      const idx = $("nszRouteSelect").value;
+      if (idx === "") return;
+      const route = NSZ_ROUTES[Number(idx)];
+      if (!route) return;
+      $("cFrom").value = "NSZ";
+      $("cTo").value = route.to;
+      $("cKm").value = route.km;
+      $("cAmt").value = window.appData.fareShift === "NIGHT" ? route.night : route.day;
+    }
+
+    function addConvEntry() {
+      const date = $("cDate").value;
+      const from = $("cFrom").value.trim().toUpperCase();
+      const to = $("cTo").value.trim().toUpperCase();
+      const km = $("cKm").value.trim();
+      const amt = Number($("cAmt").value);
+      const purpose = $("cPurpose").value.trim() || "OHE कार्य हेतु";
+      const includeReturn = $("cIncludeReturn").checked;
+
+      if (!date || !from || !to || !amt) {
+        showToast("Date, From, To, and Fare are required!", "⚠️");
+        return;
+      }
+
+      const bucket = getMonthBucket();
+      bucket.conv.push({
+        date,
+        from,
+        to,
+        mode: $("cMode").value,
+        km,
+        amount: amt,
+        purpose,
+        includeReturn
+      });
+      bucket.conv.sort((a, b) => a.date.localeCompare(b.date));
+      saveToStorage();
+
+      $("nszRouteSelect").value = "";
+      $("cTo").value = "";
+      $("cKm").value = "";
+      $("cAmt").value = "";
+      refreshDashboard();
+      showToast("Conveyance entry added!", "🚌");
+    }
+
+    async function deleteConvEntry(idx) {
+      if (!(await askConfirm("Delete Entry?", "Remove this conveyance entry?"))) return;
+      getMonthBucket().conv.splice(idx, 1);
+      saveToStorage();
+      refreshDashboard();
+      showToast("Entry removed", "🗑️");
+    }
+
+    // ==================== RENDER DASHBOARD & LISTS ====================
+    window.refreshDashboard = function () {
+      const bucket = getMonthBucket();
+      const rate = Number(window.appData.profile.rate || 625);
+
+      const taTotal = bucket.ta.reduce((s, x) => s + Number(x.amount || 0), 0);
+      const convTotal = bucket.conv.reduce((s, x) => s + Number(x.amount || 0) * (x.includeReturn ? 2 : 1), 0);
+
+      $("tileTaCount").textContent = `${bucket.ta.length} Entries`;
+      $("tileTaTotal").textContent = Math.round(taTotal);
+      $("tileConvInfo").textContent = `${bucket.conv.length} Trips • ₹${Math.round(convTotal)}`;
+      $("taCount").textContent = bucket.ta.length;
+      $("convCount").textContent = bucket.conv.length;
+      $("convTotalText").textContent = money(convTotal);
+
+      $("taListContainer").innerHTML = !bucket.ta.length
+        ? `<div class="text-center py-4 text-xs text-slate-400">No TA journey added for ${window.appData.month}.</div>`
+        : bucket.ta.map((x, i) => `
+          <div class="p-3 rounded-2xl bg-slate-50 border border-slate-200 flex justify-between items-center gap-2">
+            <div class="min-w-0">
+              <div class="text-xs font-bold text-[#0b1f3a]">${esc(formatDocxDate(x.date))} • ${x.percent}% (₹${money(x.amount)})</div>
+              <div class="text-xs text-slate-700 font-semibold truncate">${esc(x.o[3])} → ${esc(x.o[4])} → ${esc(x.r[4])}</div>
+            </div>
+            <button onclick="deleteTAEntry(${i})" class="text-xs font-bold text-red-600 bg-red-50 px-2.5 py-1.5 rounded-xl">Delete</button>
+          </div>
+        `).join("");
+
+      $("taSummaryBox").innerHTML = `
+        <div class="flex justify-between font-bold text-[#0b1f3a]">
+          <span>Grand Total (${bucket.ta.length} days @ ₹${rate})</span>
+          <span>₹${Math.round(taTotal)}/-</span>
+        </div>
+        <div class="text-[11px] text-slate-600 font-medium">${numberToIndianWords(taTotal)}</div>
+      `;
+
+      $("convListContainer").innerHTML = !bucket.conv.length
+        ? `<div class="text-center py-4 text-xs text-slate-400">No conveyance entry added for ${window.appData.month}.</div>`
+        : bucket.conv.map((x, i) => {
+          const tripTotal = Number(x.amount) * (x.includeReturn ? 2 : 1);
+          return `
+            <div class="p-3 rounded-2xl bg-slate-50 border border-slate-200 flex justify-between items-center gap-2">
+              <div class="min-w-0">
+                <div class="text-xs font-bold text-emerald-800">${esc(x.date)} • ${esc(x.from)} ↔ ${esc(x.to)} (${esc(x.km)} KM)</div>
+                <div class="text-[11px] text-slate-600">${esc(x.purpose)} • ${x.includeReturn ? "Out + वापसी" : "One-Way"} (₹${tripTotal})</div>
+              </div>
+              <button onclick="deleteConvEntry(${i})" class="text-xs font-bold text-red-600 bg-red-50 px-2.5 py-1.5 rounded-xl">Delete</button>
+            </div>
+          `;
+        }).join("");
+    };
+
+    function renderYearSummary() {
+      const year = window.appData.month.split("-")[0] || "2026";
+      const months = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"];
+      $("yearSummaryList").innerHTML = months.map((m) => {
+        const ym = `${year}-${m}`;
+        const rec = window.appData.records[ym] || { ta: [], conv: [] };
+        const taSum = rec.ta.reduce((s, x) => s + Number(x.amount || 0), 0);
+        const convSum = rec.conv.reduce((s, x) => s + Number(x.amount || 0) * (x.includeReturn ? 2 : 1), 0);
+        return `
+          <div onclick="changeActiveMonth('${ym}'); goHome();" class="p-3 rounded-2xl border ${ym === window.appData.month ? "border-[#0b1f3a] bg-blue-50/50" : "border-slate-200 bg-slate-50"} flex justify-between items-center cursor-pointer">
+            <div>
+              <div class="text-xs font-bold text-slate-900">${formatMonthName(ym)}</div>
+              <div class="text-[11px] text-slate-500">TA: ${rec.ta.length} days • Conv: ${rec.conv.length} trips</div>
+            </div>
+            <div class="text-right text-xs font-extrabold text-[#0b1f3a]">
+              <div>TA: ₹${Math.round(taSum)}</div>
+              <div class="text-emerald-700">Conv: ₹${Math.round(convSum)}</div>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    // ==================== OFFICIAL GA 31 SRC DOCX PRINT LAYOUT ====================
+    function setPreviewType(type) {
+      window.appData.previewType = type;
+      $("prevTabTA").className = type === "TA" ? "px-3 py-1.5 rounded-lg text-xs font-bold bg-[#0b1f3a] text-white" : "px-3 py-1.5 rounded-lg text-xs font-bold text-slate-700";
+      $("prevTabCONV").className = type === "CONV" ? "px-3 py-1.5 rounded-lg text-xs font-bold bg-[#0b1f3a] text-white" : "px-3 py-1.5 rounded-lg text-xs font-bold text-slate-700";
+      renderOfficialPaper();
+    }
+
+    function openPreview(type) {
+      setPreviewType(type);
+      openSection("preview");
+    }
+
+    function renderOfficialPaper() {
+      const isTA = window.appData.previewType === "TA";
+      const bucket = getMonthBucket();
+      const p = window.appData.profile;
+      const rate = Number(p.rate || 625);
+      const yearOnly = (window.appData.month || "2026-11").split("-")[0];
+      const monthNameEng = formatMonthName(window.appData.month).split(" ")[0].toUpperCase();
+      const monthNameHin = formatHindiMonth(window.appData.month);
+
+      if (isTA) {
+        const c70 = bucket.ta.filter((x) => Number(x.slab) === 0.7).length;
+        const c30 = bucket.ta.filter((x) => Number(x.slab) === 0.3).length;
+        const c100 = bucket.ta.filter((x) => Number(x.slab) === 1).length;
+
+        const r70 = rate * 0.7;
+        const r30 = rate * 0.3;
+        const r100 = rate * 1;
+
+        const sum70 = Math.round(r70 * c70);
+        const sum30 = Math.round(r30 * c30);
+        const sum100 = Math.round(r100 * c100);
+        const grandTotalRounded = sum70 + sum30 + sum100;
+
+        const entries = bucket.ta;
+        const totalRows = Math.max(entries.length, 1);
+
+        const summaryStartIdx = entries.length > 5 ? Math.max(entries.length - 5, 0) : 0;
+        const summarySpan = Math.max(entries.length - summaryStartIdx, 1);
+
+        const summaryHtml = `
+          <div style="text-align:left;font-size:10px;line-height:1.35;padding:3px 4px;">
+            <div style="text-align:center;font-weight:bold;text-decoration:underline;margin-bottom:2px;">SUMMARY</div>
+            <div style="font-size:9px;margin-bottom:2px;">Round off (Rate ₹${rate})</div>
+            <div>${String(c70).padStart(2, "0")} DAYS 70% &nbsp; ${r70.toFixed(2)}*${c70} = <b>${sum70}/-</b></div>
+            <div>${String(c30).padStart(2, "0")} DAYS 30% &nbsp; ${r30.toFixed(2)}*${c30} = <b>${sum30}/-</b></div>
+            <div>${String(c100).padStart(2, "0")} DAYS 100% ${r100}*${c100} = <b>${sum100}/-</b></div>
+            <div style="border-top:1px solid #000;margin-top:3px;padding-top:2px;font-weight:bold;text-align:right;">
+              TOTAL = ${grandTotalRounded}/-
+            </div>
+            <div style="font-weight:bold;font-size:9.5px;margin-top:2px;text-align:center;">
+              ${numberToUpperWordsNoRupees(grandTotalRounded)}
+            </div>
+          </div>
+        `;
+
+        const bodyHtml = !entries.length
+          ? `<tr>
+              <td colspan="10" style="padding:26px;color:#555;font-size:12px;">No TA journey entries added for ${esc(monthNameEng)} ${esc(yearOnly)}.</td>
+              <td colspan="2" style="vertical-align:top;">${summaryHtml}</td>
+            </tr>`
+          : entries.map((x, idx) => {
+              let rightColsHtml = "";
+              if (idx < summaryStartIdx) {
+                rightColsHtml = `<td></td><td></td>`;
+              } else if (idx === summaryStartIdx) {
+                rightColsHtml = `<td colspan="2" rowspan="${summarySpan}" style="vertical-align:middle;background:#fff;">${summaryHtml}</td>`;
+              }
+
+              const rowAmt = rate * Number(x.slab || 0);
+
+              return `
+                <tr>
+                  <td style="white-space:nowrap;"><b>${esc(formatDocxDate(x.date))}</b></td>
+                  <td style="line-height:1.25;">${esc(x.o[0])}<br>${esc(x.r[0])}</td>
+                  <td style="line-height:1.25;">${esc(x.o[1] || "—")}<br>${esc(x.r[1] || "—")}</td>
+                  <td style="line-height:1.25;">${esc(x.o[2] || "—")}<br>${esc(x.r[2] || "—")}</td>
+                  <td style="line-height:1.25;"><b>${esc(x.o[3])}</b><br><b>${esc(x.r[3])}</b></td>
+                  <td style="line-height:1.25;"><b>${esc(x.o[4])}</b><br><b>${esc(x.r[4])}</b></td>
+                  ${idx === 0 ? `<td rowspan="${totalRows}" style="writing-mode:vertical-rl;transform:rotate(180deg);font-weight:bold;letter-spacing:1px;padding:6px 2px;font-size:10px;">OUT SIDE 8 KM</td>` : ""}
+                  <td><b>${x.percent}%</b></td>
+                  <td style="text-align:left;padding:3px 5px;font-size:10px;">${esc(x.purpose || "OHE MAINTENANCE WORK")}</td>
+                  <td style="white-space:nowrap;"><b>${Number.isInteger(rowAmt) ? rowAmt : rowAmt.toFixed(2)}/-</b></td>
+                  ${rightColsHtml}
+                </tr>
+              `;
+            }).join("");
+
+        const empNameUpper = esc((p.name || "AMAR SINGH MARSKOLLE").toUpperCase());
+        const empNameHin = esc(p.nameHindi || p.name || "अमर सिंह मर्सकोले");
+        const desigUpper = esc((p.desig || "TECHNICIAN-II (TRD)").toUpperCase());
+        const branchUpper = esc((p.branch || "TRD").toUpperCase());
+        const divUpper = esc((p.division || "BHOPAL").toUpperCase());
+        const hqUpper = esc((p.hq || "SSE/TRD/NSZ").toUpperCase());
+        const pfUpper = esc((p.empid || "—").toUpperCase());
+
+        $("paperContent").innerHTML = `
+          <div style="font-size:9.5px;display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:2px;">
+            <div style="font-weight:bold;">
+              जी.ए.31 एस आर सी / जी 1677 / जी 69 एफ / जी 69 एफ / ए<br>
+              GA 31 SRC / G 1677 / G 69 F / G 69 F/A
+            </div>
+            <div style="text-align:center;flex:1;">
+              <div style="font-size:15px;font-weight:bold;letter-spacing:0.4px;">
+                यात्रा भत्ता जर्नल &nbsp; TRAVELLING ALLOWANCE JOURNAL
+              </div>
+              <div style="font-size:12px;font-weight:bold;margin-top:1px;">
+                पश्चिम मध्य रेलवे / West Central Railway
+              </div>
+            </div>
+            <div style="text-align:right;font-size:10px;">
+              नियम जिससे शासित है / Rule by which governed<br>
+              <span class="dotted-fill" style="min-width:110px;">RAILWAY ACT</span>
+            </div>
+          </div>
+
+          <div style="font-size:11px;margin:4px 0 3px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;">
+            <div>शाखा / Branch <span class="dotted-fill" style="min-width:85px;">${branchUpper}</span></div>
+            <div>मंडल/जिला / Division/District <span class="dotted-fill" style="min-width:110px;">${divUpper}</span></div>
+            <div>मुख्यालय / Headquarters <span class="dotted-fill" style="min-width:140px;">${hqUpper}</span></div>
+          </div>
+
+          <div style="font-size:11px;line-height:1.45;margin-bottom:3px;">
+            <div>
+              <span class="dotted-fill" style="min-width:210px;">${empNameHin}</span>
+              द्वारा किये गये कार्यों का जर्नल, जिनके बारे में
+              <span class="dotted-fill" style="min-width:95px;">${esc(monthNameHin)}</span>
+              <span class="dotted-fill" style="min-width:55px;">${esc(yearOnly)}</span>
+              के लिये भत्ता मांगा गया है ।
+            </div>
+            <div>
+              Journal of duties performed by
+              <span class="dotted-fill" style="min-width:225px;">${empNameUpper}</span>
+              for which allowance for
+              <span class="dotted-fill" style="min-width:110px;">${esc(monthNameEng)}</span>
+              <span class="dotted-fill" style="min-width:55px;">${esc(yearOnly)}</span>
+              is claimed.
+            </div>
+          </div>
+
+          <div style="font-size:11px;margin-bottom:5px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+            <div>पदनाम / Designation <span class="dotted-fill" style="min-width:150px;">${desigUpper}</span></div>
+            <div>वेतन / Pay <span class="dotted-fill" style="min-width:95px;">${esc(p.basic || "—")}/-</span></div>
+            <div>PF NO. <span class="dotted-fill" style="min-width:130px;">${pfUpper}</span></div>
+          </div>
+
+          <table class="rail-table">
+            <thead>
+              <tr>
+                <th rowspan="2" style="width:66px;">माह और तारीख<br>Month &amp; Date</th>
+                <th rowspan="2" style="width:82px;">गाड़ी का क्रमांक<br>Train No.</th>
+                <th rowspan="2" style="width:46px;">प्रस्थान समय<br>Time Left</th>
+                <th rowspan="2" style="width:46px;">आगमन समय<br>Time Arrived</th>
+                <th colspan="2">स्टेशन / Station</th>
+                <th rowspan="2" style="width:26px;">कि.मी.<br>Kms.</th>
+                <th rowspan="2" style="width:42px;">दिन/रात<br>Day/Night</th>
+                <th rowspan="2">यात्रा का उद्देश्य<br>Object of Journey</th>
+                <th rowspan="2" style="width:56px;">दर<br>Rate</th>
+                <th rowspan="2" style="width:115px;font-size:9px;">दूरी जिसके लिये प्राइवेट / सार्वजनिक सवारी का उपयोग किया गया<br>Distance for which Private/Public conveyance is used</th>
+                <th rowspan="2" style="width:95px;font-size:9px;">दूरी-अनुसूची के मद 20 का संदर्भ<br>Reference to Item 20 in Schedule of Distance</th>
+              </tr>
+              <tr>
+                <th style="width:54px;">से<br>From</th>
+                <th style="width:54px;">तक<br>To</th>
+              </tr>
+              <tr style="font-size:9.5px;background:#f8fafc;">
+                <th>1</th>
+                <th>2</th>
+                <th>3</th>
+                <th>4</th>
+                <th>5</th>
+                <th>6</th>
+                <th>7</th>
+                <th>8</th>
+                <th>9</th>
+                <th>10</th>
+                <th>11</th>
+                <th>12</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${bodyHtml}
+            </tbody>
+          </table>
+
+          <div class="sign-block" style="margin-top:8px;font-size:9.8px;line-height:1.35;">
+            <p style="margin:0 0 3px;text-align:justify;">
+              मैं प्रमाणित करता हूं कि उपर्युक्त <span class="dotted-fill" style="min-width:155px;">${empNameHin}</span> उस अवधि के दौरान, जिसके लिये इस बिल में भत्ता मांगा गया है रेलवे के कार्य से ड्यूटी पर मुख्यालय स्टेशन से बाहर गया था । इस अधिकारी ने रेलमार्ग/समुद्रमार्ग/सड़क-वाहन/वायुमार्ग से यात्रा की और इसे मुफ्त पास या सरकारी स्थानीय निधि या भारत सरकार के खर्च पर यात्रा करने की सुविधा दी गयी/नही दी गयी थी । मैं प्रमाणित करता हूं कि ड्यूटी पास पर की गयी यात्रा तथा विराम के बारे में जिसके लिये इस बिल में यात्रा भत्ता / दैनिक भत्ता मांगा गया हैं, किसी भी स्त्रोत से कोई यात्रा भत्ता / दैनिक भत्ता या अन्य पारिश्रमिक नहीं लिया गया है ।
+            </p>
+            <p style="margin:0 0 24px;text-align:justify;">
+              I hereby certify that above mentioned <span class="dotted-fill" style="min-width:165px;">${empNameUpper}</span> was absent on duty from his headquarter’s station during the period charged for in this bill on railway business and that the officer performed the journey by Rail/Sea/Road/Air and was allowed/not allowed Free Pass or Locomotion at the Expenses of Government Local Fund or Govt. of India. I certify that no TA/DA or any other remuneration has been drawn from any other source in respect of the journeys performed on Duty Pass and also for the halts for which TA/DA has been claimed in this bill.
+            </p>
+
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;text-align:center;font-size:10px;margin-bottom:6px;">
+              <div style="flex:1;">
+                ......................................................<br>
+                <b>प्रति हस्ताक्षरित / Countersigned</b>
+              </div>
+              <div style="flex:1;">
+                ......................................................<br>
+                <b>नियंत्रक अधिकारी / Controlling Officer</b>
+              </div>
+              <div style="flex:1;">
+                ......................................................<br>
+                <b>कार्यालय-प्रमुख / Head of Office</b>
+              </div>
+              <div style="flex:1;">
+                ......................................................<br>
+                <b>भत्ता मांगने वाले अधिकारी का हस्ताक्षर</b><br>
+                <b>Signature of Officer Claiming T.A.</b>
+              </div>
+            </div>
+
+            <div style="font-size:9px;line-height:1.3;border-top:1px dashed #666;padding-top:3px;">
+              <b>टिप्पणी :-</b> किसी एक रेलवे से दूसरी रेलवे पर स्थानान्तरण होने पर यात्रा भत्ता बिल पर यह प्रमाणित किया जाना चाहिये कि मुफ्त पास या सरकारी खर्च पर यात्रा करने की सुविधा दी गयी थी या न<br>
+              <b>Note :-</b> On transfer from one Railway to another, certificate whether or not a Free Pass or Locomotion at Government Expenses was allowed or not should be recorded on T.A. Bills.
+            </div>
+          </div>
+        `;
+      } else {
+        const total = bucket.conv.reduce((s, x) => s + Number(x.amount || 0) * (x.includeReturn ? 2 : 1), 0);
+        const modeLabel = bucket.conv[0]?.mode || "Bus / Road";
+        const monthNameOnly = formatMonthName(window.appData.month).split(" ")[0];
+
+        const convRowsHtml = !bucket.conv.length
+          ? `<tr><td colspan="7" style="padding:20px;color:#666;">No conveyance entries for ${esc(window.appData.month)}.</td></tr>`
+          : bucket.conv.map((x, idx) => {
+              const outRow = `
+                <tr>
+                  <td ${x.includeReturn ? 'rowspan="2"' : ""}><b>${idx + 1}</b></td>
+                  <td>${esc(formatShortDate(x.date))}</td>
+                  <td>${esc(x.from)}</td>
+                  <td>${esc(x.to)}</td>
+                  <td>${esc(x.purpose)}</td>
+                  <td>${esc(x.km)}</td>
+                  <td>${Math.round(x.amount)}/-</td>
+                </tr>
+              `;
+              const retRow = x.includeReturn
+                ? `<tr>
+                    <td>— || —</td>
+                    <td>${esc(x.to)}</td>
+                    <td>${esc(x.from)}</td>
+                    <td>— वापसी —</td>
+                    <td>${esc(x.km)}</td>
+                    <td>${Math.round(x.amount)}/-</td>
+                  </tr>`
+                : "";
+              return outRow + retRow;
+            }).join("");
+
+        $("paperContent").innerHTML = `
+          <div style="text-align:center;margin-bottom:8px;">
+            <h2 style="margin:0;font-size:18px;">अनुषंगिक बिल (CONVEYANCE BILL)</h2>
+          </div>
+
+          <table class="emp-meta" style="width:100%;margin-bottom:8px;">
+            <tr>
+              <td style="width:55%;"><b>कर्मचारी का नाम :</b> ${esc(p.nameHindi || p.name || "—")}</td>
+              <td style="width:45%;"><b>पदनाम :</b> ${esc(p.desig || "—")}</td>
+            </tr>
+            <tr>
+              <td><b>कार्यालय :</b> ${esc(p.hq || "SSE/TRD/NSZ")}</td>
+              <td><b>वेतनमान रु. :</b> ${esc(p.payScale || "Level-4 / 2400/-")}</td>
+            </tr>
+            <tr>
+              <td><b>वेतन :</b> ₹${esc(p.basic || "—")}</td>
+              <td><b>अनुषंगिक बिल माह :</b> ${esc(monthNameOnly)} ${esc(yearOnly)}</td>
+            </tr>
+            <tr>
+              <td colspan="2"><b>मोड ऑफ कन्वेयंस :</b> ${esc(modeLabel)}</td>
+            </tr>
+          </table>
+
+          <table class="rail-table">
+            <thead>
+              <tr>
+                <th style="width:42px;">क्र.</th>
+                <th style="width:88px;">दिनांक</th>
+                <th style="width:95px;">कहाँ से</th>
+                <th style="width:95px;">कहाँ तक</th>
+                <th>यात्रा का उद्देश्य</th>
+                <th style="width:75px;">दूरी कि.मी.</th>
+                <th style="width:85px;">राशि रु.पै.</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${convRowsHtml}
+              <tr>
+                <td colspan="4" rowspan="2" style="text-align:left;vertical-align:top;padding:8px;">
+                  <div style="border:1px solid #333;padding:6px 10px;display:inline-block;font-size:11px;">
+                    <b>Movement Verified</b><br>
+                    By .........................
+                  </div>
+                </td>
+                <td colspan="2" style="text-align:left;padding:6px;">
+                  <b>कुल शब्दों में :</b> ${numberToIndianWords(total)}
+                </td>
+                <td><b>${Math.round(total)}/-</b></td>
+              </tr>
+              <tr>
+                <td colspan="2" style="text-align:right;font-weight:bold;padding:6px;">योग ₹</td>
+                <td style="font-weight:bold;font-size:13px;">${Math.round(total)}/-</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="sign-block" style="margin-top:14px;font-size:12px;">
+            <p style="margin:0 0 3px;">प्रमाणित किया जाता है कि मैंने उपर्युक्त व्यय का प्रत्यक्ष भुगतान रेल सेवा के लिए किया है।</p>
+            <p style="margin:0 0 28px;">मांगी गयी रकम प्रत्यक्ष खर्च है और यह व्यय आवश्यक तथा अनिवार्य है।</p>
+
+            <div style="display:flex;justify-content:space-between;align-items:flex-end;">
+              <div style="font-weight:bold;">प्रति हस्ताक्षरित</div>
+              <div style="min-width:220px;text-align:left;line-height:1.5;">
+                <b>हस्ताक्षर :</b> _____________________<br>
+                <b>नाम :</b> ${esc(p.nameHindi || p.name || "—")}<br>
+                <b>पदनाम :</b> ${esc(p.desig || "—")}<br>
+                <b>विभाग :</b> ${esc(p.hq || "TRD/NSZ")}
+              </div>
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    // ==================== BACKUP & RESET ====================
+    function exportBackupJson() {
+      const blob = new Blob([JSON.stringify(window.appData, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Railway_TA_Backup_${window.appData.month}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast("Backup downloaded!", "⬇️");
+    }
+
+    async function clearCurrentMonthData() {
+      if (!(await askConfirm("Clear Month Data?", `Delete all TA & Conveyance entries for ${window.appData.month}?`))) return;
+      window.appData.records[window.appData.month] = { ta: [], conv: [] };
+      saveToStorage();
+      refreshDashboard();
+      showToast("Current month cleared", "🗑️");
+    }
+
+    // ==================== BOOTSTRAP ====================
+    function initApp() {
+      setupPwaManifestAndSw();
+      loadFromStorage();
+      updateLockSettingsUI();
+      playSplashAnimation();
+      populateNszDropdown();
+
+      const today = new Date().toISOString().slice(0, 10);
+      $("taDate").value = today;
+      $("cDate").value = today;
+      $("dashMonthPicker").value = window.appData.month;
+      $("dashMonthLabel").textContent = window.appData.month;
+
+      applyProfileUI();
+      refreshDashboard();
+    }
+
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", initApp);
+    } else {
+      initApp();
+    }
+  </script>
+</body>
+</html>
